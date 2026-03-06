@@ -23,6 +23,7 @@ That's it. With zero configuration you get:
 - **line-length** — warns on lines over 120 chars, errors over 200
 - **file-length** — warns when a file exceeds 500 lines
 - **todo-comments** — flags `TODO`, `FIXME`, `HACK`, and `XXX` comments (allows `TODO(#123)` with issue references)
+- **inline-comments** — flags functions with excessive `//` comments (ratio > 30% or > 3 consecutive)
 
 ## Usage
 
@@ -88,6 +89,11 @@ level = "warn"
 keywords = ["TODO", "FIXME", "HACK", "XXX"]
 allow_with_issue = true
 
+[rules.inline-comments]
+level = "warn"
+max_ratio = 0.3
+max_consecutive = 3
+
 [rules.file-header]
 level = "warn"
 required = "// Copyright 2025 My Company"
@@ -147,6 +153,19 @@ Verifies that the first non-empty line of each file matches a required string. D
 | Setting | Default | Description |
 |---|---|---|
 | `required` | none | Required header text |
+
+### inline-comments
+
+Flags excessive inline `//` comments inside function bodies. Helps catch AI-generated code that over-explains obvious logic. Doc comments (`///`, `//!`) are excluded. Functions with fewer than 4 meaningful lines are skipped.
+
+Two checks are performed:
+- **Ratio** — warns when the comment-to-code ratio exceeds the threshold
+- **Consecutive** — warns when too many `//` comment lines appear in a row
+
+| Setting | Default | Description |
+|---|---|---|
+| `max_ratio` | `0.3` | Maximum ratio of comment lines to total meaningful lines (0.0–1.0) |
+| `max_consecutive` | `3` | Maximum number of consecutive `//` comment lines |
 
 ### allow-audit
 

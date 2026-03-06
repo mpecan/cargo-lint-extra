@@ -31,6 +31,7 @@ pub struct RulesConfig {
     pub todo_comments: TodoCommentsConfig,
     pub file_header: FileHeaderConfig,
     pub allow_audit: AllowAuditConfig,
+    pub inline_comments: InlineCommentsConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -128,6 +129,24 @@ impl Default for AllowAuditConfig {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct InlineCommentsConfig {
+    pub level: RuleLevel,
+    pub max_ratio: f64,
+    pub max_consecutive: usize,
+}
+
+impl Default for InlineCommentsConfig {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            max_ratio: 0.3,
+            max_consecutive: 3,
+        }
+    }
+}
+
 const CONFIG_FILE_NAME: &str = ".cargo-lint-extra.toml";
 
 impl Config {
@@ -173,6 +192,9 @@ mod tests {
         assert_eq!(config.rules.todo_comments.keywords.len(), 4);
         assert_eq!(config.rules.file_header.level, RuleLevel::Allow);
         assert_eq!(config.rules.allow_audit.level, RuleLevel::Allow);
+        assert_eq!(config.rules.inline_comments.level, RuleLevel::Warn);
+        assert!((config.rules.inline_comments.max_ratio - 0.3).abs() < f64::EPSILON);
+        assert_eq!(config.rules.inline_comments.max_consecutive, 3);
     }
 
     #[test]
@@ -231,6 +253,28 @@ flagged = ["dead_code"]
         assert!(!config.rules.todo_comments.allow_with_issue);
         assert_eq!(config.rules.allow_audit.level, RuleLevel::Warn);
         assert_eq!(config.rules.allow_audit.flagged, vec!["dead_code"]);
+        fs::remove_file(config_path).ok();
+    }
+
+    #[test]
+    fn test_inline_comments_config_parsing() {
+        let dir = std::env::temp_dir().join("cargo-lint-extra-test-inline");
+        fs::create_dir_all(&dir).unwrap();
+        let config_path = dir.join(CONFIG_FILE_NAME);
+        fs::write(
+            &config_path,
+            r#"
+[rules.inline-comments]
+level = "deny"
+max_ratio = 0.5
+max_consecutive = 5
+"#,
+        )
+        .unwrap();
+        let config = Config::load(&dir).unwrap();
+        assert_eq!(config.rules.inline_comments.level, RuleLevel::Deny);
+        assert!((config.rules.inline_comments.max_ratio - 0.5).abs() < f64::EPSILON);
+        assert_eq!(config.rules.inline_comments.max_consecutive, 5);
         fs::remove_file(config_path).ok();
     }
 }

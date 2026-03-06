@@ -3,6 +3,7 @@ use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::ast::allow_audit::AllowAuditRule;
 use crate::rules::text::file_header::FileHeaderRule;
 use crate::rules::text::file_length::FileLengthRule;
+use crate::rules::text::inline_comments::InlineCommentsRule;
 use crate::rules::text::line_length::LineLengthRule;
 use crate::rules::text::todo_comments::TodoCommentsRule;
 use crate::rules::{AstRule, TextRule};
@@ -34,6 +35,9 @@ impl Engine {
         }
         if rules.file_header.level != RuleLevel::Allow {
             text_rules.push(Box::new(FileHeaderRule::new(&rules.file_header)));
+        }
+        if rules.inline_comments.level != RuleLevel::Allow {
+            text_rules.push(Box::new(InlineCommentsRule::new(&rules.inline_comments)));
         }
 
         if rules.allow_audit.level != RuleLevel::Allow {
@@ -138,7 +142,7 @@ mod tests {
     fn test_engine_default_config() {
         let config = Config::default();
         let engine = Engine::new(&config);
-        assert_eq!(engine.text_rules.len(), 3);
+        assert_eq!(engine.text_rules.len(), 4);
         assert_eq!(engine.ast_rules.len(), 0);
     }
 
