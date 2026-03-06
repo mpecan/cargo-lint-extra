@@ -9,18 +9,10 @@ pub struct Config {
     pub rules: RulesConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct GlobalConfig {
     pub exclude: Vec<String>,
-}
-
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        Self {
-            exclude: vec!["target".to_string()],
-        }
-    }
 }
 
 #[derive(Debug, Default, Deserialize)]

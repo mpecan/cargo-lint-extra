@@ -1,0 +1,2 @@
+[global]
+exclude = ["tests/fixtures", "src/rules/text/inline_comments_parser_tests.rs", "src/rules/text/inline_comments_rule_tests.rs"]

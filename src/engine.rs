@@ -128,9 +128,11 @@ impl Engine {
     fn is_excluded(&self, path: &Path, root: &Path) -> bool {
         let relative = path.strip_prefix(root).unwrap_or(path);
         let path_str = relative.to_string_lossy();
-        self.exclude
-            .iter()
-            .any(|pattern| path_str.starts_with(pattern.as_str()))
+        path_str.starts_with("target")
+            || self
+                .exclude
+                .iter()
+                .any(|pattern| path_str.starts_with(pattern.as_str()))
     }
 }
 
