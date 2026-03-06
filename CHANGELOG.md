@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/mpecan/cargo-lint-extra/compare/cargo-lint-extra-v0.1.1...cargo-lint-extra-v0.1.2) (2026-03-06)
+
+
+### Bug Fixes
+
+* add cross-compilation targets to rust-toolchain.toml ([ffffb7d](https://github.com/mpecan/cargo-lint-extra/commit/ffffb7db9ccfb1bcb8bcb107d0f1187f8e5ec766))
+
+
+### Documentation
+
+* add CLAUDE.md with project constitution and conventions ([c51f9fe](https://github.com/mpecan/cargo-lint-extra/commit/c51f9fe357d178ce6d193138616149ee561e83d3))
+
 ## [0.1.1](https://github.com/mpecan/cargo-lint-extra/compare/cargo-lint-extra-v0.1.0...cargo-lint-extra-v0.1.1) (2026-03-06)
 
 
