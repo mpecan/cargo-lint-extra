@@ -64,11 +64,21 @@ pub struct FileLengthConfig {
     pub max: usize,
 }
 
+/// Default `soft_limit` value, used to detect whether `soft_limit` was explicitly set.
+const DEFAULT_SOFT_LIMIT: usize = 500;
+
 impl FileLengthConfig {
     /// After deserialization, migrate the deprecated `max` field to `soft_limit`.
-    pub const fn migrate_deprecated(&mut self) {
+    /// Prints a deprecation warning to stderr. If both `max` and a non-default
+    /// `soft_limit` are set, `soft_limit` takes precedence.
+    pub fn migrate_deprecated(&mut self) {
         if self.max > 0 {
-            self.soft_limit = self.max;
+            eprintln!(
+                "warning: 'max' in [rules.file-length] is deprecated, use 'soft_limit' instead"
+            );
+            if self.soft_limit == DEFAULT_SOFT_LIMIT {
+                self.soft_limit = self.max;
+            }
             self.max = 0;
         }
     }
@@ -324,6 +334,26 @@ max = 400
         let config = Config::load(&dir).unwrap();
         assert_eq!(config.rules.file_length.soft_limit, 400);
         assert_eq!(config.rules.file_length.hard_limit, 1000);
+        fs::remove_file(config_path).ok();
+    }
+
+    #[test]
+    fn test_deprecated_max_conflict_soft_limit_wins() {
+        let dir = std::env::temp_dir().join("cargo-lint-extra-test-max-conflict");
+        fs::create_dir_all(&dir).unwrap();
+        let config_path = dir.join(CONFIG_FILE_NAME);
+        fs::write(
+            &config_path,
+            "
+[rules.file-length]
+max = 300
+soft_limit = 400
+",
+        )
+        .unwrap();
+        let config = Config::load(&dir).unwrap();
+        // soft_limit was explicitly set (not default), so it wins over max
+        assert_eq!(config.rules.file_length.soft_limit, 400);
         fs::remove_file(config_path).ok();
     }
 }

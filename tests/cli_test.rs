@@ -37,6 +37,21 @@ fn test_exit_code_0_clean_file() {
 }
 
 #[test]
+fn test_json_output_empty_array_on_clean_run() {
+    let dir = fixture_dir("clean.rs", "json-clean");
+    let output = Command::new(cargo_bin())
+        .args(["lint-extra", "--format", "json"])
+        .arg(dir.to_str().unwrap())
+        .output()
+        .expect("failed to run binary");
+    let _ = std::fs::remove_dir_all(&dir);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("clean JSON run should produce valid JSON");
+    assert_eq!(parsed, serde_json::json!([]), "clean run should emit []");
+}
+
+#[test]
 fn test_exit_code_0_warnings_only() {
     let dir = fixture_dir("long_lines.rs", "exit0-warn");
     let output = Command::new(cargo_bin())
@@ -172,5 +187,26 @@ fn test_warnings_as_errors_flag() {
         output.status.code(),
         Some(1),
         "warnings-as-errors should exit 1 for warnings"
+    );
+}
+
+#[test]
+fn test_config_flag_migrates_deprecated_max() {
+    let dir = fixture_dir("clean.rs", "config-max");
+    let config_path = dir.join(".cargo-lint-extra.toml");
+    // Set max=3, which should migrate to soft_limit=3.
+    // clean.rs has 5 lines, so it should trigger a warning.
+    std::fs::write(&config_path, "[rules.file-length]\nmax = 3\n").unwrap();
+    let output = Command::new(cargo_bin())
+        .args(["lint-extra", "--config"])
+        .arg(config_path.to_str().unwrap())
+        .arg(dir.to_str().unwrap())
+        .output()
+        .expect("failed to run binary");
+    let _ = std::fs::remove_dir_all(&dir);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("file-length"),
+        "deprecated max should migrate to soft_limit via --config: {stdout}"
     );
 }

@@ -4,6 +4,7 @@ use crate::rules::TextRule;
 use std::path::Path;
 
 pub struct LineLengthRule {
+    level: RuleLevel,
     soft_limit: usize,
     hard_limit: usize,
     url_exception: bool,
@@ -12,9 +13,19 @@ pub struct LineLengthRule {
 impl LineLengthRule {
     pub const fn new(config: &LineLengthConfig) -> Self {
         Self {
+            level: config.level,
             soft_limit: config.soft_limit,
             hard_limit: config.hard_limit,
             url_exception: config.url_exception,
+        }
+    }
+
+    /// Resolve the effective severity: hard limit always Deny;
+    /// soft limit is Warn unless the configured level promotes it.
+    const fn effective_level(&self, base: RuleLevel) -> RuleLevel {
+        match (base, self.level) {
+            (_, RuleLevel::Deny) => RuleLevel::Deny,
+            (other, _) => other,
         }
     }
 
@@ -61,7 +72,7 @@ impl TextRule for LineLengthRule {
             Some(
                 Diagnostic::new(
                     self.name(),
-                    RuleLevel::Warn,
+                    self.effective_level(RuleLevel::Warn),
                     format!(
                         "line is {char_count} chars (soft limit {})",
                         self.soft_limit
@@ -146,6 +157,19 @@ mod tests {
         });
         let line = format!("// see https://example.com/{}", "x".repeat(200));
         assert!(rule.check_line(&line, 1, Path::new("test.rs")).is_some());
+    }
+
+    #[test]
+    fn test_level_deny_promotes_soft_limit_to_error() {
+        let rule = LineLengthRule::new(&LineLengthConfig {
+            level: RuleLevel::Deny,
+            ..LineLengthConfig::default()
+        });
+        let long_line = "x".repeat(121);
+        let diag = rule
+            .check_line(&long_line, 1, Path::new("test.rs"))
+            .unwrap();
+        assert_eq!(diag.level, RuleLevel::Deny);
     }
 
     #[test]

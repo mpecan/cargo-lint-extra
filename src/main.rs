@@ -61,8 +61,11 @@ fn main() {
 
     let mut config = if let Some(config_path) = &args.config {
         match std::fs::read_to_string(config_path) {
-            Ok(content) => match toml::from_str(&content) {
-                Ok(c) => c,
+            Ok(content) => match toml::from_str::<Config>(&content) {
+                Ok(mut c) => {
+                    c.rules.file_length.migrate_deprecated();
+                    c
+                }
                 Err(e) => {
                     eprintln!("error: failed to parse config: {e}");
                     process::exit(2);
@@ -90,10 +93,6 @@ fn main() {
 
     let engine = Engine::new(&config);
     let diagnostics = engine.run(&root);
-
-    if diagnostics.is_empty() {
-        process::exit(0);
-    }
 
     match args.format {
         OutputFormat::Human => {

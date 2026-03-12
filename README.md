@@ -38,13 +38,14 @@ cargo lint-extra [OPTIONS] [PATH]
 | `--config <FILE>` | Path to config file |
 | `--enable <RULES>` | Comma-separated rules to enable |
 | `--disable <RULES>` | Comma-separated rules to disable |
+| `-W`, `--warnings-as-errors` | Treat warnings as errors (exit 1 if any diagnostics) |
 
 ### Exit codes
 
 | Code | Meaning |
 |---|---|
-| `0` | No findings |
-| `1` | One or more findings |
+| `0` | No findings, or warnings only (without `-W`) |
+| `1` | One or more errors, or any finding with `-W` |
 | `2` | Configuration or path error |
 
 ### Examples
@@ -64,6 +65,9 @@ cargo lint-extra --disable line-length,todo-comments
 
 # Lint a specific directory
 cargo lint-extra src/
+
+# Fail on any finding (warnings + errors)
+cargo lint-extra -W
 ```
 
 ## Configuration
@@ -113,8 +117,10 @@ Each rule supports three levels:
 | Level | Behaviour |
 |---|---|
 | `"allow"` | Rule is disabled |
-| `"warn"` | Reports a warning (triggers exit code 1) |
-| `"deny"` | Reports an error (triggers exit code 1) |
+| `"warn"` | Rule is enabled; findings are warnings (exit 0) |
+| `"deny"` | Rule is enabled; **all** findings are errors (exit 1) |
+
+For rules with soft/hard limits (`line-length`, `file-length`), hard limit violations are always errors regardless of `level`. Setting `level = "deny"` additionally promotes soft limit violations to errors — useful for strict per-rule enforcement without the global `-W` flag.
 
 ## Rules
 
@@ -138,6 +144,8 @@ Warns when a file exceeds a soft line-count limit, and errors when it exceeds a 
 |---|---|---|
 | `soft_limit` | `500` | Line count that triggers a warning |
 | `hard_limit` | `1000` | Line count that triggers an error |
+
+> **Migration note:** The previous `max` field is accepted as a deprecated alias for `soft_limit`. If both are set, `soft_limit` takes precedence. A deprecation warning is printed to stderr.
 
 ### todo-comments
 
@@ -264,24 +272,18 @@ code // cargo-lint-extra:allow()
 
 ### GitHub Actions
 
-```yaml
-- name: Lint (extras)
-  run: cargo lint-extra --format json > lint-extra.json
-
-- name: Check lint results
-  run: |
-    if [ -s lint-extra.json ] && [ "$(cat lint-extra.json)" != "[]" ]; then
-      echo "::error::cargo-lint-extra found issues"
-      cat lint-extra.json | jq .
-      exit 1
-    fi
-```
-
-Or simply use the exit code:
+Block on errors only (hard limit violations):
 
 ```yaml
 - name: Lint (extras)
   run: cargo lint-extra
+```
+
+Block on any finding (strict mode):
+
+```yaml
+- name: Lint (extras)
+  run: cargo lint-extra -W
 ```
 
 ## How it works
