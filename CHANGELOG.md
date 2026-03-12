@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.4](https://github.com/mpecan/cargo-lint-extra/compare/cargo-lint-extra-v0.1.3...cargo-lint-extra-v0.1.4) (2026-03-12)
+
+
+### Features
+
+* add cargo-binstall metadata for prebuilt binary installation ([34c7b44](https://github.com/mpecan/cargo-lint-extra/commit/34c7b4415d801ecff6fbfc97de5bbceb2cf4f393))
+* exit 0 for warnings, exit 1 for errors, add -W flag ([72386f5](https://github.com/mpecan/cargo-lint-extra/commit/72386f52008fff52b1cb6c3d56203b1de9f52036))
+
+
+### Bug Fixes
+
+* level=deny promotes soft violations, deprecation warning, docs ([a4fb8d6](https://github.com/mpecan/cargo-lint-extra/commit/a4fb8d675d2561c40545e2b30c20fb74642fa0e2))
+
 ## [0.1.3](https://github.com/mpecan/cargo-lint-extra/compare/cargo-lint-extra-v0.1.2...cargo-lint-extra-v0.1.3) (2026-03-12)
 
 
