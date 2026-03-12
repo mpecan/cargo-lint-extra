@@ -56,14 +56,31 @@ impl Default for LineLengthConfig {
 #[serde(default)]
 pub struct FileLengthConfig {
     pub level: RuleLevel,
+    pub soft_limit: usize,
+    pub hard_limit: usize,
+    /// Deprecated alias for `soft_limit`. If set (non-zero), overrides `soft_limit`.
+    #[doc(hidden)]
+    #[serde(default)]
     pub max: usize,
+}
+
+impl FileLengthConfig {
+    /// After deserialization, migrate the deprecated `max` field to `soft_limit`.
+    pub const fn migrate_deprecated(&mut self) {
+        if self.max > 0 {
+            self.soft_limit = self.max;
+            self.max = 0;
+        }
+    }
 }
 
 impl Default for FileLengthConfig {
     fn default() -> Self {
         Self {
             level: RuleLevel::Warn,
-            max: 500,
+            soft_limit: 500,
+            hard_limit: 1000,
+            max: 0,
         }
     }
 }
@@ -165,8 +182,10 @@ impl Config {
         if let Some(path) = Self::find_config_file(start_dir) {
             let content = std::fs::read_to_string(&path)
                 .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
-            toml::from_str(&content)
-                .map_err(|e| format!("failed to parse config {}: {e}", path.display()))
+            let mut config: Self = toml::from_str(&content)
+                .map_err(|e| format!("failed to parse config {}: {e}", path.display()))?;
+            config.rules.file_length.migrate_deprecated();
+            Ok(config)
         } else {
             Ok(Self::default())
         }
@@ -195,7 +214,8 @@ mod tests {
         let config = Config::default();
         assert_eq!(config.rules.line_length.soft_limit, 120);
         assert_eq!(config.rules.line_length.hard_limit, 200);
-        assert_eq!(config.rules.file_length.max, 500);
+        assert_eq!(config.rules.file_length.soft_limit, 500);
+        assert_eq!(config.rules.file_length.hard_limit, 1000);
         assert!(config.rules.line_length.url_exception);
         assert!(config.rules.todo_comments.allow_with_issue);
         assert_eq!(config.rules.todo_comments.keywords.len(), 4);
@@ -234,7 +254,8 @@ level = "deny"
         assert_eq!(config.rules.line_length.soft_limit, 100);
         assert_eq!(config.rules.line_length.hard_limit, 150);
         assert_eq!(config.rules.line_length.level, RuleLevel::Deny);
-        assert_eq!(config.rules.file_length.max, 500);
+        assert_eq!(config.rules.file_length.soft_limit, 500);
+        assert_eq!(config.rules.file_length.hard_limit, 1000);
         fs::remove_file(config_path).ok();
     }
 
@@ -284,6 +305,25 @@ max_consecutive = 5
         assert_eq!(config.rules.inline_comments.level, RuleLevel::Deny);
         assert!((config.rules.inline_comments.max_ratio - 0.5).abs() < f64::EPSILON);
         assert_eq!(config.rules.inline_comments.max_consecutive, 5);
+        fs::remove_file(config_path).ok();
+    }
+
+    #[test]
+    fn test_deprecated_max_migrates_to_soft_limit() {
+        let dir = std::env::temp_dir().join("cargo-lint-extra-test-deprecated-max");
+        fs::create_dir_all(&dir).unwrap();
+        let config_path = dir.join(CONFIG_FILE_NAME);
+        fs::write(
+            &config_path,
+            "
+[rules.file-length]
+max = 400
+",
+        )
+        .unwrap();
+        let config = Config::load(&dir).unwrap();
+        assert_eq!(config.rules.file_length.soft_limit, 400);
+        assert_eq!(config.rules.file_length.hard_limit, 1000);
         fs::remove_file(config_path).ok();
     }
 }

@@ -21,7 +21,7 @@ cargo lint-extra
 That's it. With zero configuration you get:
 
 - **line-length** — warns on lines over 120 chars, errors over 200
-- **file-length** — warns when a file exceeds 500 lines
+- **file-length** — warns on files over 500 lines, errors over 1000
 - **todo-comments** — flags `TODO`, `FIXME`, `HACK`, and `XXX` comments (allows `TODO(#123)` with issue references)
 - **inline-comments** — flags functions with excessive `//` comments (ratio > 30% or > 3 consecutive)
 
@@ -82,7 +82,8 @@ url_exception = true
 
 [rules.file-length]
 level = "warn"
-max = 400
+soft_limit = 400
+hard_limit = 800
 
 [rules.todo-comments]
 level = "warn"
@@ -131,11 +132,12 @@ Lines containing URLs in comments are exempt by default (controlled by `url_exce
 
 ### file-length
 
-Warns when a file exceeds a maximum line count.
+Warns when a file exceeds a soft line-count limit, and errors when it exceeds a hard limit.
 
 | Setting | Default | Description |
 |---|---|---|
-| `max` | `500` | Maximum number of lines |
+| `soft_limit` | `500` | Line count that triggers a warning |
+| `hard_limit` | `1000` | Line count that triggers an error |
 
 ### todo-comments
 

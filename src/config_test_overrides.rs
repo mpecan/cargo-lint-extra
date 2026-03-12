@@ -61,7 +61,8 @@ pub struct LineLengthOverride {
 #[serde(default)]
 pub struct FileLengthOverride {
     pub level: Option<RuleLevel>,
-    pub max: Option<usize>,
+    pub soft_limit: Option<usize>,
+    pub hard_limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -135,8 +136,11 @@ const fn apply_file_length_override(cfg: &mut FileLengthConfig, o: &FileLengthOv
     if let Some(v) = o.level {
         cfg.level = v;
     }
-    if let Some(v) = o.max {
-        cfg.max = v;
+    if let Some(v) = o.soft_limit {
+        cfg.soft_limit = v;
+    }
+    if let Some(v) = o.hard_limit {
+        cfg.hard_limit = v;
     }
 }
 
@@ -254,7 +258,7 @@ mod tests {
         // Inherited fields
         assert_eq!(resolved.line_length.hard_limit, 200);
         assert!(resolved.line_length.url_exception);
-        assert_eq!(resolved.file_length.max, 500);
+        assert_eq!(resolved.file_length.soft_limit, 500);
     }
 
     #[test]
