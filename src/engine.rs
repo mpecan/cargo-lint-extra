@@ -7,6 +7,7 @@ use crate::rules::text::inline_comments::InlineCommentsRule;
 use crate::rules::text::line_length::LineLengthRule;
 use crate::rules::text::todo_comments::TodoCommentsRule;
 use crate::rules::{AstRule, TextRule};
+use crate::suppression::SuppressionMap;
 use ignore::WalkBuilder;
 use rayon::prelude::*;
 use std::path::Path;
@@ -72,42 +73,7 @@ impl Engine {
         let diagnostics = Mutex::new(Vec::new());
 
         files.par_iter().for_each(|file| {
-            let Ok(content) = std::fs::read_to_string(file) else {
-                return;
-            };
-
-            let mut file_diags = Vec::new();
-
-            for rule in &self.text_rules {
-                for (i, line) in content.lines().enumerate() {
-                    if let Some(diag) = rule.check_line(line, i + 1, file) {
-                        file_diags.push(diag);
-                    }
-                }
-                file_diags.extend(rule.check_file(&content, file));
-            }
-
-            if !self.ast_rules.is_empty() {
-                match syn::parse_file(&content) {
-                    Ok(syntax) => {
-                        for rule in &self.ast_rules {
-                            file_diags.extend(rule.check_file(&syntax, file));
-                        }
-                    }
-                    Err(err) => {
-                        file_diags.push(
-                            Diagnostic::new(
-                                "parse-error",
-                                RuleLevel::Warn,
-                                format!("failed to parse: {err}"),
-                                file,
-                            )
-                            .with_line(err.span().start().line),
-                        );
-                    }
-                }
-            }
-
+            let file_diags = self.check_file(file);
             if !file_diags.is_empty() {
                 #[allow(clippy::unwrap_used)]
                 diagnostics.lock().unwrap().extend(file_diags);
@@ -123,6 +89,51 @@ impl Engine {
                 .then(a.column.cmp(&b.column))
         });
         result
+    }
+
+    fn check_file(&self, file: &Path) -> Vec<Diagnostic> {
+        let Ok(content) = std::fs::read_to_string(file) else {
+            return Vec::new();
+        };
+
+        let mut diags = Vec::new();
+
+        for rule in &self.text_rules {
+            for (i, line) in content.lines().enumerate() {
+                if let Some(diag) = rule.check_line(line, i + 1, file) {
+                    diags.push(diag);
+                }
+            }
+            diags.extend(rule.check_file(&content, file));
+        }
+
+        if !self.ast_rules.is_empty() {
+            match syn::parse_file(&content) {
+                Ok(syntax) => {
+                    for rule in &self.ast_rules {
+                        diags.extend(rule.check_file(&syntax, file));
+                    }
+                }
+                Err(err) => {
+                    diags.push(
+                        Diagnostic::new(
+                            "parse-error",
+                            RuleLevel::Warn,
+                            format!("failed to parse: {err}"),
+                            file,
+                        )
+                        .with_line(err.span().start().line),
+                    );
+                }
+            }
+        }
+
+        let suppressions = SuppressionMap::from_content(&content);
+        if !suppressions.is_empty() {
+            diags.retain(|diag| !suppressions.is_suppressed(diag.line, &diag.rule));
+        }
+
+        diags
     }
 
     fn is_excluded(&self, path: &Path, root: &Path) -> bool {

@@ -26,6 +26,7 @@
 | `src/config.rs` | TOML config loading with `#[serde(default)]` |
 | `src/diagnostic.rs` | `Diagnostic` type and formatting (human/JSON) |
 | `src/engine.rs` | File walking (`ignore`), parallel processing (`rayon`), rule orchestration |
+| `src/suppression.rs` | Comment-based inline suppression (`// cargo-lint-extra:allow(...)`) |
 | `src/rules/mod.rs` | `TextRule` and `AstRule` trait definitions |
 | `src/rules/text/` | Text-based rules (line-by-line + whole-file) |
 | `src/rules/ast/` | AST-based rules (via `syn`) |
@@ -46,7 +47,8 @@ Both traits require `Send + Sync` for parallel execution.
 2. Apply `global.exclude` prefix patterns
 3. Process files in parallel with `rayon`
 4. Run text rules, then AST rules (AST parsing only when AST rules are enabled)
-5. Sort diagnostics by file, line, column
+5. Filter out diagnostics suppressed by `// cargo-lint-extra:allow(...)` comments
+6. Sort diagnostics by file, line, column
 
 ## Code standards
 

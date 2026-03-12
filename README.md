@@ -175,6 +175,47 @@ Flags `#[allow(...)]` attributes that suppress specific lints, helping teams aud
 |---|---|---|
 | `flagged` | `["dead_code", "unused_variables", "unused_imports"]` | Lint names to flag when suppressed |
 
+## Inline suppression
+
+You can suppress specific rules on individual lines, functions, or blocks using comment directives — no config changes needed.
+
+### Syntax
+
+```rust
+// Suppress on the same line (inline)
+let x = very_long_expression; // cargo-lint-extra:allow(line-length)
+
+// Suppress the next line
+// cargo-lint-extra:allow(todo-comments)
+// TODO: this is fine for now
+
+// Suppress an entire block (fn, mod, impl, struct, enum, trait)
+// cargo-lint-extra:allow(inline-comments)
+fn my_function() {
+    // all inline-comments diagnostics suppressed in this function
+}
+
+// Suppress multiple rules
+code // cargo-lint-extra:allow(line-length, todo-comments)
+
+// Suppress all rules
+code // cargo-lint-extra:allow
+code // cargo-lint-extra:allow()
+```
+
+### Scopes
+
+| Scope | Syntax | Effect |
+|---|---|---|
+| Inline | Code before `//` on the same line | Suppresses that line only |
+| Next-line | Standalone `//` comment | Suppresses the next non-blank line |
+| Block | Standalone comment before `fn`/`mod`/`impl`/`struct`/`enum`/`trait` | Suppresses the entire block (up to the matching `}`) |
+
+### Limitations
+
+- File-level diagnostics (like `file-length`) have no line number and cannot be suppressed via comments — use the config file instead.
+- Only `//` line comments are supported for suppression (not `/* */`).
+
 ## CI integration
 
 ### GitHub Actions
@@ -206,7 +247,8 @@ Or simply use the exit code:
 3. Processes files in parallel with [rayon](https://crates.io/crates/rayon)
 4. Runs text-based rules (line-by-line and whole-file checks)
 5. Parses files with [syn](https://crates.io/crates/syn) and runs AST-based rules (only when AST rules are enabled)
-6. Collects and sorts diagnostics by file and line number
+6. Filters out diagnostics suppressed by `// cargo-lint-extra:allow(...)` comments
+7. Collects and sorts diagnostics by file and line number
 
 ## License
 
