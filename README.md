@@ -7,6 +7,10 @@ Configurable linting rules for Rust projects that fill the gap between rustfmt a
 ## Installation
 
 ```sh
+# Pre-built binary (recommended, requires cargo-binstall)
+cargo binstall cargo-lint-extra
+
+# Build from source
 cargo install cargo-lint-extra
 ```
 

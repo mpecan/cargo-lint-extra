@@ -19,6 +19,11 @@ ignore = "0.4"
 rayon = "1"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/cargo-lint-extra-v{ version }/cargo-lint-extra-v{ version }-{ target }.tar.gz"
+pkg-fmt = "tgz"
+bin-dir = "{ bin }{ binary-ext }"
+
 [lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
