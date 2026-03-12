@@ -37,8 +37,22 @@ fn test_exit_code_0_clean_file() {
 }
 
 #[test]
-fn test_exit_code_1_findings() {
-    let dir = fixture_dir("long_lines.rs", "exit1");
+fn test_exit_code_0_warnings_only() {
+    let dir = fixture_dir("long_lines.rs", "exit0-warn");
+    let output = Command::new(cargo_bin())
+        .args(["lint-extra"])
+        .arg(dir.to_str().unwrap())
+        .output()
+        .expect("failed to run binary");
+    let _ = std::fs::remove_dir_all(&dir);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("warning"), "should have warnings: {stdout}");
+    assert_eq!(output.status.code(), Some(0), "warnings-only should exit 0");
+}
+
+#[test]
+fn test_exit_code_1_errors() {
+    let dir = fixture_dir("hard_limit_line.rs", "exit1");
     let output = Command::new(cargo_bin())
         .args(["lint-extra"])
         .arg(dir.to_str().unwrap())
@@ -48,7 +62,7 @@ fn test_exit_code_1_findings() {
     assert_eq!(
         output.status.code(),
         Some(1),
-        "file with findings should exit 1"
+        "file with errors should exit 1"
     );
 }
 
@@ -142,5 +156,21 @@ fn test_enable_flag() {
     assert!(
         arr.iter().any(|d| d["rule"] == "allow-audit"),
         "enabling allow-audit should produce diagnostics"
+    );
+}
+
+#[test]
+fn test_warnings_as_errors_flag() {
+    let dir = fixture_dir("long_lines.rs", "warn-as-err");
+    let output = Command::new(cargo_bin())
+        .args(["lint-extra", "-W"])
+        .arg(dir.to_str().unwrap())
+        .output()
+        .expect("failed to run binary");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "warnings-as-errors should exit 1 for warnings"
     );
 }

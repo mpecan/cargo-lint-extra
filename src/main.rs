@@ -35,6 +35,10 @@ struct Args {
     /// Disable specific rules (comma-separated)
     #[arg(long, value_delimiter = ',')]
     disable: Vec<String>,
+
+    /// Treat warnings as errors (exit 1 if any diagnostics are found)
+    #[arg(short = 'W', long)]
+    warnings_as_errors: bool,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -104,7 +108,9 @@ fn main() {
         }
     }
 
-    process::exit(1);
+    let has_errors =
+        args.warnings_as_errors || diagnostics.iter().any(|d| d.level == RuleLevel::Deny);
+    process::exit(i32::from(has_errors));
 }
 
 fn apply_overrides(config: &mut Config, enable: &[String], disable: &[String]) {
