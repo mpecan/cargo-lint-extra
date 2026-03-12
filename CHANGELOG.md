@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/mpecan/cargo-lint-extra/compare/cargo-lint-extra-v0.1.2...cargo-lint-extra-v0.1.3) (2026-03-12)
+
+
+### Features
+
+* add soft/hard limits to file-length rule ([e9a6d80](https://github.com/mpecan/cargo-lint-extra/commit/e9a6d800d6f8b0505e0c56cd8a2ffb50e8c6c133))
+
 ## [0.1.2](https://github.com/mpecan/cargo-lint-extra/compare/cargo-lint-extra-v0.1.1...cargo-lint-extra-v0.1.2) (2026-03-12)
 
 
