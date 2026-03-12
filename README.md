@@ -175,6 +175,48 @@ Flags `#[allow(...)]` attributes that suppress specific lints, helping teams aud
 |---|---|---|
 | `flagged` | `["dead_code", "unused_variables", "unused_imports"]` | Lint names to flag when suppressed |
 
+## Test code overrides
+
+You can configure different rule settings for test code using the `[test]` section. This lets you relax rules in tests (e.g., longer lines, allow `#[allow(dead_code)]` in test helpers) while keeping production code strict.
+
+```toml
+# Production rules
+[rules.line-length]
+soft_limit = 100
+
+[rules.allow-audit]
+level = "warn"
+
+# Test overrides — only specify what's different
+[test]
+patterns = ["tests/", "benches/"]  # default
+detect_cfg_test = true             # default — detect #[cfg(test)] blocks
+
+[test.rules.line-length]
+soft_limit = 150           # relaxed for tests
+# hard_limit, url_exception inherited from prod
+
+[test.rules.allow-audit]
+level = "allow"            # disable for test files
+```
+
+### Override semantics
+
+Per-field merge: specified fields in `[test.rules.*]` override the production value, unspecified fields inherit from the base `[rules.*]` config.
+
+### Test file detection
+
+Two mechanisms determine which code gets test rules:
+
+| Mechanism | Default | Description |
+|---|---|---|
+| **Path patterns** | `["tests/", "benches/"]` | Prefix match against the relative file path. Patterns starting with `*` use suffix match (e.g., `*_test.rs`). Entire file uses test rules. |
+| **`#[cfg(test)]` detection** | `true` | Within any file, `#[cfg(test)]` attributed items get test rules while the rest uses prod rules. |
+
+### CLI interaction
+
+`--enable`/`--disable` CLI overrides modify the base `[rules]` config. Since test overrides merge on top of the base, CLI overrides flow to test rules unless the `[test]` section explicitly overrides that rule.
+
 ## Inline suppression
 
 You can suppress specific rules on individual lines, functions, or blocks using comment directives — no config changes needed.

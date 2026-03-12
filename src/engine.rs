@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, RulesConfig, TestConfig};
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::ast::allow_audit::AllowAuditRule;
 use crate::rules::text::file_header::FileHeaderRule;
@@ -8,47 +8,71 @@ use crate::rules::text::line_length::LineLengthRule;
 use crate::rules::text::todo_comments::TodoCommentsRule;
 use crate::rules::{AstRule, TextRule};
 use crate::suppression::SuppressionMap;
+use crate::test_detection::TestLineRanges;
 use ignore::WalkBuilder;
 use rayon::prelude::*;
 use std::path::Path;
 use std::sync::Mutex;
 
 pub struct Engine {
-    text_rules: Vec<Box<dyn TextRule>>,
-    ast_rules: Vec<Box<dyn AstRule>>,
+    prod_text_rules: Vec<Box<dyn TextRule>>,
+    prod_ast_rules: Vec<Box<dyn AstRule>>,
+    test_text_rules: Vec<Box<dyn TextRule>>,
+    test_ast_rules: Vec<Box<dyn AstRule>>,
     exclude: Vec<String>,
+    test_config: Option<TestConfig>,
+}
+
+type TextRules = Vec<Box<dyn TextRule>>;
+type AstRules = Vec<Box<dyn AstRule>>;
+
+fn build_rules(rules: &RulesConfig) -> (TextRules, AstRules) {
+    let mut text_rules: Vec<Box<dyn TextRule>> = Vec::new();
+    let mut ast_rules: Vec<Box<dyn AstRule>> = Vec::new();
+
+    if rules.line_length.level != RuleLevel::Allow {
+        text_rules.push(Box::new(LineLengthRule::new(&rules.line_length)));
+    }
+    if rules.file_length.level != RuleLevel::Allow {
+        text_rules.push(Box::new(FileLengthRule::new(&rules.file_length)));
+    }
+    if rules.todo_comments.level != RuleLevel::Allow {
+        text_rules.push(Box::new(TodoCommentsRule::new(&rules.todo_comments)));
+    }
+    if rules.file_header.level != RuleLevel::Allow {
+        text_rules.push(Box::new(FileHeaderRule::new(&rules.file_header)));
+    }
+    if rules.inline_comments.level != RuleLevel::Allow {
+        text_rules.push(Box::new(InlineCommentsRule::new(&rules.inline_comments)));
+    }
+
+    if rules.allow_audit.level != RuleLevel::Allow {
+        ast_rules.push(Box::new(AllowAuditRule::new(&rules.allow_audit)));
+    }
+
+    (text_rules, ast_rules)
 }
 
 impl Engine {
     pub fn new(config: &Config) -> Self {
-        let rules = &config.rules;
-        let mut text_rules: Vec<Box<dyn TextRule>> = Vec::new();
-        let mut ast_rules: Vec<Box<dyn AstRule>> = Vec::new();
+        let (prod_text_rules, prod_ast_rules) = build_rules(&config.rules);
 
-        if rules.line_length.level != RuleLevel::Allow {
-            text_rules.push(Box::new(LineLengthRule::new(&rules.line_length)));
-        }
-        if rules.file_length.level != RuleLevel::Allow {
-            text_rules.push(Box::new(FileLengthRule::new(&rules.file_length)));
-        }
-        if rules.todo_comments.level != RuleLevel::Allow {
-            text_rules.push(Box::new(TodoCommentsRule::new(&rules.todo_comments)));
-        }
-        if rules.file_header.level != RuleLevel::Allow {
-            text_rules.push(Box::new(FileHeaderRule::new(&rules.file_header)));
-        }
-        if rules.inline_comments.level != RuleLevel::Allow {
-            text_rules.push(Box::new(InlineCommentsRule::new(&rules.inline_comments)));
-        }
-
-        if rules.allow_audit.level != RuleLevel::Allow {
-            ast_rules.push(Box::new(AllowAuditRule::new(&rules.allow_audit)));
-        }
+        let (test_text_rules, test_ast_rules, test_config) = config.test.as_ref().map_or_else(
+            || (Vec::new(), Vec::new(), None),
+            |test_cfg| {
+                let test_rules = config.resolved_test_rules();
+                let (tt, ta) = build_rules(&test_rules);
+                (tt, ta, Some(test_cfg.clone()))
+            },
+        );
 
         Self {
-            text_rules,
-            ast_rules,
+            prod_text_rules,
+            prod_ast_rules,
+            test_text_rules,
+            test_ast_rules,
             exclude: config.global.exclude.clone(),
+            test_config,
         }
     }
 
@@ -73,7 +97,7 @@ impl Engine {
         let diagnostics = Mutex::new(Vec::new());
 
         files.par_iter().for_each(|file| {
-            let file_diags = self.check_file(file);
+            let file_diags = self.check_file(file, root);
             if !file_diags.is_empty() {
                 #[allow(clippy::unwrap_used)]
                 diagnostics.lock().unwrap().extend(file_diags);
@@ -91,26 +115,82 @@ impl Engine {
         result
     }
 
-    fn check_file(&self, file: &Path) -> Vec<Diagnostic> {
+    fn check_file(&self, file: &Path, root: &Path) -> Vec<Diagnostic> {
         let Ok(content) = std::fs::read_to_string(file) else {
             return Vec::new();
         };
 
+        let relative = file.strip_prefix(root).unwrap_or(file);
+        let relative_str = relative.to_string_lossy();
+
+        if let Some(test_cfg) = &self.test_config {
+            if test_cfg.is_test_file(&relative_str) {
+                return Self::run_rules_on_content(
+                    &self.test_text_rules,
+                    &self.test_ast_rules,
+                    &content,
+                    file,
+                );
+            }
+
+            if test_cfg.detect_cfg_test {
+                let test_ranges = TestLineRanges::from_content(&content);
+                if !test_ranges.is_empty() {
+                    return self.check_mixed_file(&content, file, &test_ranges);
+                }
+            }
+        }
+
+        Self::run_rules_on_content(&self.prod_text_rules, &self.prod_ast_rules, &content, file)
+    }
+
+    fn check_mixed_file(
+        &self,
+        content: &str,
+        file: &Path,
+        test_ranges: &TestLineRanges,
+    ) -> Vec<Diagnostic> {
+        // Run prod rules — keep diagnostics NOT in test ranges
+        let prod_diags =
+            Self::run_rules_on_content(&self.prod_text_rules, &self.prod_ast_rules, content, file);
+        let mut result: Vec<_> = prod_diags
+            .into_iter()
+            .filter(|d| !d.line.is_some_and(|l| test_ranges.is_test_line(l)))
+            .collect();
+
+        // Run test rules — keep diagnostics IN test ranges
+        let test_diags =
+            Self::run_rules_on_content(&self.test_text_rules, &self.test_ast_rules, content, file);
+        result.extend(
+            test_diags
+                .into_iter()
+                .filter(|d| d.line.is_some_and(|l| test_ranges.is_test_line(l))),
+        );
+
+        result
+    }
+
+    fn run_rules_on_content(
+        text_rules: &[Box<dyn TextRule>],
+        ast_rules: &[Box<dyn AstRule>],
+        content: &str,
+        file: &Path,
+    ) -> Vec<Diagnostic> {
         let mut diags = Vec::new();
 
-        for rule in &self.text_rules {
+        for rule in text_rules {
             for (i, line) in content.lines().enumerate() {
                 if let Some(diag) = rule.check_line(line, i + 1, file) {
                     diags.push(diag);
                 }
             }
-            diags.extend(rule.check_file(&content, file));
+            diags.extend(rule.check_file(content, file));
         }
 
-        if !self.ast_rules.is_empty() {
-            match syn::parse_file(&content) {
+        if !ast_rules.is_empty() {
+            match syn::parse_file(content) {
                 Ok(syntax) => {
-                    for rule in &self.ast_rules {
+                    for rule in ast_rules {
                         diags.extend(rule.check_file(&syntax, file));
                     }
                 }
@@ -128,7 +208,7 @@ impl Engine {
             }
         }
 
-        let suppressions = SuppressionMap::from_content(&content);
+        let suppressions = SuppressionMap::from_content(content);
         if !suppressions.is_empty() {
             diags.retain(|diag| !suppressions.is_suppressed(diag.line, &diag.rule));
         }
@@ -148,6 +228,7 @@ impl Engine {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -155,8 +236,24 @@ mod tests {
     fn test_engine_default_config() {
         let config = Config::default();
         let engine = Engine::new(&config);
-        assert_eq!(engine.text_rules.len(), 4);
-        assert_eq!(engine.ast_rules.len(), 0);
+        assert_eq!(engine.prod_text_rules.len(), 4);
+        assert_eq!(engine.prod_ast_rules.len(), 0);
+        assert!(engine.test_text_rules.is_empty());
+        assert!(engine.test_ast_rules.is_empty());
+        assert!(engine.test_config.is_none());
+    }
+
+    #[test]
+    fn test_engine_with_test_config() {
+        let config = Config {
+            test: Some(TestConfig::default()),
+            ..Config::default()
+        };
+        let engine = Engine::new(&config);
+        assert_eq!(engine.prod_text_rules.len(), 4);
+        // Test rules should mirror prod when no overrides
+        assert_eq!(engine.test_text_rules.len(), 4);
+        assert!(engine.test_config.is_some());
     }
 
     #[test]

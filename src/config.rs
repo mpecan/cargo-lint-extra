@@ -2,11 +2,17 @@ use crate::diagnostic::RuleLevel;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+pub use crate::config_test_overrides::{
+    AllowAuditOverride, FileHeaderOverride, FileLengthOverride, InlineCommentsOverride,
+    LineLengthOverride, TestConfig, TestRulesOverrides, TodoCommentsOverride,
+};
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
     pub global: GlobalConfig,
     pub rules: RulesConfig,
+    pub test: Option<TestConfig>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -15,7 +21,7 @@ pub struct GlobalConfig {
     pub exclude: Vec<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct RulesConfig {
     pub line_length: LineLengthConfig,
@@ -26,7 +32,7 @@ pub struct RulesConfig {
     pub inline_comments: InlineCommentsConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct LineLengthConfig {
     pub level: RuleLevel,
@@ -46,7 +52,7 @@ impl Default for LineLengthConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct FileLengthConfig {
     pub level: RuleLevel,
@@ -62,7 +68,7 @@ impl Default for FileLengthConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct TodoCommentsConfig {
     pub level: RuleLevel,
@@ -85,7 +91,7 @@ impl Default for TodoCommentsConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct FileHeaderConfig {
     pub level: RuleLevel,
@@ -101,7 +107,7 @@ impl Default for FileHeaderConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct AllowAuditConfig {
     pub level: RuleLevel,
@@ -121,7 +127,7 @@ impl Default for AllowAuditConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct InlineCommentsConfig {
     pub level: RuleLevel,
@@ -139,9 +145,20 @@ impl Default for InlineCommentsConfig {
     }
 }
 
-const CONFIG_FILE_NAME: &str = ".cargo-lint-extra.toml";
+pub const CONFIG_FILE_NAME: &str = ".cargo-lint-extra.toml";
 
 impl Config {
+    /// Build a `RulesConfig` for test files by cloning the base rules and
+    /// applying any overrides from the `[test]` section.
+    pub fn resolved_test_rules(&self) -> RulesConfig {
+        let Some(test) = &self.test else {
+            return self.rules.clone();
+        };
+        let mut rules = self.rules.clone();
+        crate::config_test_overrides::apply_test_overrides(&mut rules, &test.rules);
+        rules
+    }
+
     /// # Errors
     /// Returns an error if the config file cannot be read or parsed.
     pub fn load(start_dir: &Path) -> Result<Self, String> {
