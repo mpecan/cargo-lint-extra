@@ -237,7 +237,7 @@ fn test_file_length_hard_limit_denies() {
     assert!(fl[0].message.contains("hard limit"));
 }
 
-// --- Test override integration tests ---
+// --- Test override integration tests --- // cargo-lint-extra:allow(redundant-comments)
 
 fn config_with_test_line_length_override(soft_limit: usize) -> Config {
     Config {
@@ -355,5 +355,50 @@ fn test_override_suffix_pattern() {
     assert!(
         has_test_file_diags,
         "test_main.rs should be flagged since it doesn't match *_test.rs pattern"
+    );
+}
+
+// --- Redundant comments integration tests --- // cargo-lint-extra:allow(redundant-comments)
+
+#[test]
+fn test_redundant_comments_detected() {
+    let config = Config::default();
+    let diags = run_on_fixture("redundant_comments.rs", "redundant-comments", &config);
+    let rc: Vec<_> = diags
+        .iter()
+        .filter(|d| d.rule == "redundant-comments")
+        .collect();
+    // 4 redundant comments: increment counter, return result, create vector, set name
+    assert_eq!(
+        rc.len(),
+        4,
+        "expected 4 redundant-comments diagnostics, got {}: {rc:?}",
+        rc.len()
+    );
+}
+
+#[test]
+fn test_redundant_comments_disabled() {
+    let mut config = Config::default();
+    config.rules.redundant_comments.level = RuleLevel::Allow;
+    let diags = run_on_fixture("redundant_comments.rs", "redundant-disabled", &config);
+    assert!(
+        !diags.iter().any(|d| d.rule == "redundant-comments"),
+        "disabled redundant-comments rule should produce no diagnostics"
+    );
+}
+
+#[test]
+fn test_redundant_comments_suppression() {
+    let config = Config::default();
+    let diags = run_on_fixture("redundant_comments.rs", "redundant-suppression", &config);
+    // The "return the value" comment is suppressed via cargo-lint-extra:allow
+    let rc: Vec<_> = diags
+        .iter()
+        .filter(|d| d.rule == "redundant-comments")
+        .collect();
+    assert!(
+        !rc.iter().any(|d| d.message.contains("return the value")),
+        "suppressed redundant comment should not be flagged"
     );
 }

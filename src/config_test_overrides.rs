@@ -1,6 +1,6 @@
 use crate::config::{
     AllowAuditConfig, FileHeaderConfig, FileLengthConfig, InlineCommentsConfig, LineLengthConfig,
-    RulesConfig, TodoCommentsConfig,
+    RedundantCommentsConfig, RulesConfig, TodoCommentsConfig,
 };
 use crate::diagnostic::RuleLevel;
 use serde::Deserialize;
@@ -46,6 +46,7 @@ pub struct TestRulesOverrides {
     pub file_header: Option<FileHeaderOverride>,
     pub allow_audit: Option<AllowAuditOverride>,
     pub inline_comments: Option<InlineCommentsOverride>,
+    pub redundant_comments: Option<RedundantCommentsOverride>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -95,6 +96,14 @@ pub struct InlineCommentsOverride {
     pub max_consecutive: Option<usize>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct RedundantCommentsOverride {
+    pub level: Option<RuleLevel>,
+    pub similarity_threshold: Option<f64>,
+    pub min_words: Option<usize>,
+}
+
 /// Apply test overrides to a cloned `RulesConfig`, merging only `Some` fields.
 pub(crate) fn apply_test_overrides(rules: &mut RulesConfig, overrides: &TestRulesOverrides) {
     if let Some(o) = &overrides.line_length {
@@ -114,6 +123,9 @@ pub(crate) fn apply_test_overrides(rules: &mut RulesConfig, overrides: &TestRule
     }
     if let Some(o) = &overrides.inline_comments {
         apply_inline_comments_override(&mut rules.inline_comments, o);
+    }
+    if let Some(o) = &overrides.redundant_comments {
+        apply_redundant_comments_override(&mut rules.redundant_comments, o);
     }
 }
 
@@ -186,6 +198,21 @@ const fn apply_inline_comments_override(
     }
     if let Some(v) = o.max_consecutive {
         cfg.max_consecutive = v;
+    }
+}
+
+const fn apply_redundant_comments_override(
+    cfg: &mut RedundantCommentsConfig,
+    o: &RedundantCommentsOverride,
+) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = o.similarity_threshold {
+        cfg.similarity_threshold = v;
+    }
+    if let Some(v) = o.min_words {
+        cfg.min_words = v;
     }
 }
 

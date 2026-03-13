@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 
 pub use crate::config_test_overrides::{
     AllowAuditOverride, FileHeaderOverride, FileLengthOverride, InlineCommentsOverride,
-    LineLengthOverride, TestConfig, TestRulesOverrides, TodoCommentsOverride,
+    LineLengthOverride, RedundantCommentsOverride, TestConfig, TestRulesOverrides,
+    TodoCommentsOverride,
 };
 
 #[derive(Debug, Default, Deserialize)]
@@ -30,6 +31,7 @@ pub struct RulesConfig {
     pub file_header: FileHeaderConfig,
     pub allow_audit: AllowAuditConfig,
     pub inline_comments: InlineCommentsConfig,
+    pub redundant_comments: RedundantCommentsConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -172,6 +174,24 @@ impl Default for InlineCommentsConfig {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct RedundantCommentsConfig {
+    pub level: RuleLevel,
+    pub similarity_threshold: f64,
+    pub min_words: usize,
+}
+
+impl Default for RedundantCommentsConfig {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            similarity_threshold: 0.5,
+            min_words: 2,
+        }
+    }
+}
+
 pub const CONFIG_FILE_NAME: &str = ".cargo-lint-extra.toml";
 
 impl Config {
@@ -234,6 +254,9 @@ mod tests {
         assert_eq!(config.rules.inline_comments.level, RuleLevel::Warn);
         assert!((config.rules.inline_comments.max_ratio - 0.3).abs() < f64::EPSILON);
         assert_eq!(config.rules.inline_comments.max_consecutive, 3);
+        assert_eq!(config.rules.redundant_comments.level, RuleLevel::Warn);
+        assert!((config.rules.redundant_comments.similarity_threshold - 0.5).abs() < f64::EPSILON);
+        assert_eq!(config.rules.redundant_comments.min_words, 2);
     }
 
     #[test]
