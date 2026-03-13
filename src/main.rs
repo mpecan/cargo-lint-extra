@@ -129,6 +129,7 @@ fn set_rule_level(config: &mut Config, rule: &str, level: RuleLevel) {
         "file-header" => config.rules.file_header.level = level,
         "allow-audit" => config.rules.allow_audit.level = level,
         "inline-comments" => config.rules.inline_comments.level = level,
+        "redundant-comments" => config.rules.redundant_comments.level = level,
         _ => eprintln!("warning: unknown rule '{rule}'"),
     }
 }

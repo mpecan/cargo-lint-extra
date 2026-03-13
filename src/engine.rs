@@ -5,6 +5,7 @@ use crate::rules::text::file_header::FileHeaderRule;
 use crate::rules::text::file_length::FileLengthRule;
 use crate::rules::text::inline_comments::InlineCommentsRule;
 use crate::rules::text::line_length::LineLengthRule;
+use crate::rules::text::redundant_comments::RedundantCommentsRule;
 use crate::rules::text::todo_comments::TodoCommentsRule;
 use crate::rules::{AstRule, TextRule};
 use crate::suppression::SuppressionMap;
@@ -44,6 +45,11 @@ fn build_rules(rules: &RulesConfig) -> (TextRules, AstRules) {
     }
     if rules.inline_comments.level != RuleLevel::Allow {
         text_rules.push(Box::new(InlineCommentsRule::new(&rules.inline_comments)));
+    }
+    if rules.redundant_comments.level != RuleLevel::Allow {
+        text_rules.push(Box::new(RedundantCommentsRule::new(
+            &rules.redundant_comments,
+        )));
     }
 
     if rules.allow_audit.level != RuleLevel::Allow {
@@ -236,7 +242,7 @@ mod tests {
     fn test_engine_default_config() {
         let config = Config::default();
         let engine = Engine::new(&config);
-        assert_eq!(engine.prod_text_rules.len(), 4);
+        assert_eq!(engine.prod_text_rules.len(), 5);
         assert_eq!(engine.prod_ast_rules.len(), 0);
         assert!(engine.test_text_rules.is_empty());
         assert!(engine.test_ast_rules.is_empty());
@@ -250,9 +256,9 @@ mod tests {
             ..Config::default()
         };
         let engine = Engine::new(&config);
-        assert_eq!(engine.prod_text_rules.len(), 4);
+        assert_eq!(engine.prod_text_rules.len(), 5);
         // Test rules should mirror prod when no overrides
-        assert_eq!(engine.test_text_rules.len(), 4);
+        assert_eq!(engine.test_text_rules.len(), 5);
         assert!(engine.test_config.is_some());
     }
 

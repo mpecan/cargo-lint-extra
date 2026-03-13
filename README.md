@@ -28,6 +28,7 @@ That's it. With zero configuration you get:
 - **file-length** — warns on files over 500 lines, errors over 1000
 - **todo-comments** — flags `TODO`, `FIXME`, `HACK`, and `XXX` comments (allows `TODO(#123)` with issue references)
 - **inline-comments** — flags functions with excessive `//` comments (ratio > 30% or > 3 consecutive)
+- **redundant-comments** — flags `//` comments that restate the code they describe (e.g., `// increment counter` above `counter += 1`)
 
 ## Usage
 
@@ -102,6 +103,11 @@ allow_with_issue = true
 level = "warn"
 max_ratio = 0.3
 max_consecutive = 3
+
+[rules.redundant-comments]
+level = "warn"
+similarity_threshold = 0.5
+min_words = 2
 
 [rules.file-header]
 level = "warn"
@@ -180,6 +186,17 @@ Two checks are performed:
 |---|---|---|
 | `max_ratio` | `0.3` | Maximum ratio of comment lines to total meaningful lines (0.0–1.0) |
 | `max_consecutive` | `3` | Maximum number of consecutive `//` comment lines |
+
+### redundant-comments
+
+Flags `//` comments that merely restate the code on the next line, helping catch AI-generated noise like `// increment the counter` above `counter += 1`. Doc comments (`///`, `//!`) and directive comments (`SAFETY:`, `TODO`, `FIXME`, etc.) are skipped. Comments with fewer than `min_words` words or more than 20 words are ignored.
+
+The rule tokenizes both the comment and the next code line, splits identifiers on `_` and camelCase boundaries, strips common English stop words from the comment, and computes the fraction of remaining comment words that appear in the code.
+
+| Setting | Default | Description |
+|---|---|---|
+| `similarity_threshold` | `0.5` | Minimum word overlap ratio to flag (0.0–1.0) |
+| `min_words` | `2` | Minimum words in comment (before stop word removal) to consider |
 
 ### allow-audit
 
