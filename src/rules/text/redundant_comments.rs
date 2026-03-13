@@ -91,7 +91,7 @@ fn is_regular_comment(trimmed: &str) -> bool {
 }
 
 fn extract_comment_text(trimmed: &str) -> String {
-    trimmed.trim_start_matches('/').trim().to_lowercase()
+    trimmed.trim_start_matches('/').trim().to_string()
 }
 
 fn is_directive_comment(text: &str) -> bool {
@@ -108,7 +108,8 @@ fn is_directive_comment(text: &str) -> bool {
         "warning:",
         "error:",
     ];
-    DIRECTIVES.iter().any(|d| text.starts_with(d))
+    let lower = text.to_lowercase();
+    DIRECTIVES.iter().any(|d| lower.starts_with(d))
 }
 
 fn find_next_code_line<'a>(lines: &[&'a str], start: usize) -> Option<(usize, &'a str)> {

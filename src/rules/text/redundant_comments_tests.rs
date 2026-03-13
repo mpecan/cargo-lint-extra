@@ -163,6 +163,17 @@ fn test_redundant_set_name() {
 }
 
 #[test]
+fn test_redundant_camel_case_in_comment() {
+    let content = "// call getUserName\ngetUserName();\n";
+    let diags = run_rule(content);
+    assert_eq!(
+        diags.len(),
+        1,
+        "camelCase in comment should be split and matched: {diags:?}"
+    );
+}
+
+#[test]
 fn test_doc_comment_skipped() {
     let content = "/// increment the counter\ncounter += 1;\n";
     let diags = run_rule(content);

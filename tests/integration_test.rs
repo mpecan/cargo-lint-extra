@@ -392,13 +392,20 @@ fn test_redundant_comments_disabled() {
 fn test_redundant_comments_suppression() {
     let config = Config::default();
     let diags = run_on_fixture("redundant_comments.rs", "redundant-suppression", &config);
-    // The "return the value" comment is suppressed via cargo-lint-extra:allow
+    // The "return the value" comment at line 30 is suppressed via cargo-lint-extra:allow
     let rc: Vec<_> = diags
         .iter()
         .filter(|d| d.rule == "redundant-comments")
         .collect();
+    // Without suppression there would be 5 diagnostics; the suppressed one reduces it to 4
+    assert_eq!(
+        rc.len(),
+        4,
+        "expected 4 redundant-comments diagnostics (1 suppressed), got {}: {rc:?}",
+        rc.len()
+    );
     assert!(
-        !rc.iter().any(|d| d.message.contains("return the value")),
-        "suppressed redundant comment should not be flagged"
+        !rc.iter().any(|d| d.line == Some(30)),
+        "suppressed redundant comment at line 30 should not be flagged"
     );
 }
