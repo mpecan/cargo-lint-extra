@@ -29,6 +29,7 @@ That's it. With zero configuration you get:
 - **todo-comments** — flags `TODO`, `FIXME`, `HACK`, and `XXX` comments (allows `TODO(#123)` with issue references)
 - **inline-comments** — flags functions with excessive `//` comments (ratio > 30% or > 3 consecutive)
 - **redundant-comments** — flags `//` comments that restate the code they describe (e.g., `// increment counter` above `counter += 1`)
+- **clone-density** — flags functions with too many `.clone()` calls (> 5 calls or > 10% ratio in 10+ statement functions)
 
 ## Usage
 
@@ -116,6 +117,11 @@ required = "// Copyright 2025 My Company"
 [rules.allow-audit]
 level = "warn"
 flagged = ["dead_code", "unused_variables", "unused_imports"]
+
+[rules.clone-density]
+level = "warn"
+max_clones_per_fn = 5
+max_clone_ratio = 0.1
 ```
 
 Every field has a default — you only need to specify what you want to change.
@@ -197,6 +203,19 @@ The rule tokenizes both the comment and the next code line, splits identifiers o
 |---|---|---|
 | `similarity_threshold` | `0.5` | Minimum word overlap ratio to flag (0.0–1.0) |
 | `min_words` | `2` | Minimum words in comment (before stop word removal) to consider |
+
+### clone-density
+
+Flags functions with excessive `.clone()` calls, catching clone-heavy code that likely needs refactoring. Particularly useful for catching patterns where LLMs use `.clone()` to avoid borrow checker issues. Only zero-argument `.clone()` calls are counted. Functions with fewer than 10 statements are exempt from the ratio check to avoid false positives on small constructors.
+
+Two checks are performed:
+- **Count** — flags when a function has more `.clone()` calls than the threshold
+- **Ratio** — flags when the clone-to-statement ratio exceeds the threshold (only for functions with 10+ statements)
+
+| Setting | Default | Description |
+|---|---|---|
+| `max_clones_per_fn` | `5` | Maximum number of `.clone()` calls per function |
+| `max_clone_ratio` | `0.1` | Maximum ratio of `.clone()` calls to total statements (0.0–1.0) |
 
 ### allow-audit
 

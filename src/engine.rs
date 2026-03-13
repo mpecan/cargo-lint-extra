@@ -1,6 +1,7 @@
 use crate::config::{Config, RulesConfig, TestConfig};
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::ast::allow_audit::AllowAuditRule;
+use crate::rules::ast::clone_density::CloneDensityRule;
 use crate::rules::text::file_header::FileHeaderRule;
 use crate::rules::text::file_length::FileLengthRule;
 use crate::rules::text::inline_comments::InlineCommentsRule;
@@ -54,6 +55,9 @@ fn build_rules(rules: &RulesConfig) -> (TextRules, AstRules) {
 
     if rules.allow_audit.level != RuleLevel::Allow {
         ast_rules.push(Box::new(AllowAuditRule::new(&rules.allow_audit)));
+    }
+    if rules.clone_density.level != RuleLevel::Allow {
+        ast_rules.push(Box::new(CloneDensityRule::new(&rules.clone_density)));
     }
 
     (text_rules, ast_rules)
@@ -243,7 +247,7 @@ mod tests {
         let config = Config::default();
         let engine = Engine::new(&config);
         assert_eq!(engine.prod_text_rules.len(), 5);
-        assert_eq!(engine.prod_ast_rules.len(), 0);
+        assert_eq!(engine.prod_ast_rules.len(), 1);
         assert!(engine.test_text_rules.is_empty());
         assert!(engine.test_ast_rules.is_empty());
         assert!(engine.test_config.is_none());
@@ -259,6 +263,7 @@ mod tests {
         assert_eq!(engine.prod_text_rules.len(), 5);
         // Test rules should mirror prod when no overrides
         assert_eq!(engine.test_text_rules.len(), 5);
+        assert_eq!(engine.test_ast_rules.len(), 1);
         assert!(engine.test_config.is_some());
     }
 

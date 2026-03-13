@@ -1,6 +1,6 @@
 use crate::config::{
-    AllowAuditConfig, FileHeaderConfig, FileLengthConfig, InlineCommentsConfig, LineLengthConfig,
-    RedundantCommentsConfig, RulesConfig, TodoCommentsConfig,
+    AllowAuditConfig, CloneDensityConfig, FileHeaderConfig, FileLengthConfig, InlineCommentsConfig,
+    LineLengthConfig, RedundantCommentsConfig, RulesConfig, TodoCommentsConfig,
 };
 use crate::diagnostic::RuleLevel;
 use serde::Deserialize;
@@ -47,6 +47,7 @@ pub struct TestRulesOverrides {
     pub allow_audit: Option<AllowAuditOverride>,
     pub inline_comments: Option<InlineCommentsOverride>,
     pub redundant_comments: Option<RedundantCommentsOverride>,
+    pub clone_density: Option<CloneDensityOverride>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -90,6 +91,14 @@ pub struct AllowAuditOverride {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct CloneDensityOverride {
+    pub level: Option<RuleLevel>,
+    pub max_clones_per_fn: Option<usize>,
+    pub max_clone_ratio: Option<f64>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct InlineCommentsOverride {
     pub level: Option<RuleLevel>,
     pub max_ratio: Option<f64>,
@@ -126,6 +135,9 @@ pub(crate) fn apply_test_overrides(rules: &mut RulesConfig, overrides: &TestRule
     }
     if let Some(o) = &overrides.redundant_comments {
         apply_redundant_comments_override(&mut rules.redundant_comments, o);
+    }
+    if let Some(o) = &overrides.clone_density {
+        apply_clone_density_override(&mut rules.clone_density, o);
     }
 }
 
@@ -183,6 +195,18 @@ fn apply_allow_audit_override(cfg: &mut AllowAuditConfig, o: &AllowAuditOverride
     }
     if let Some(v) = &o.flagged {
         cfg.flagged.clone_from(v);
+    }
+}
+
+const fn apply_clone_density_override(cfg: &mut CloneDensityConfig, o: &CloneDensityOverride) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = o.max_clones_per_fn {
+        cfg.max_clones_per_fn = v;
+    }
+    if let Some(v) = o.max_clone_ratio {
+        cfg.max_clone_ratio = v;
     }
 }
 
