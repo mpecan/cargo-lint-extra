@@ -71,7 +71,7 @@ impl AstRule for Rule {
         "clone-density"
     }
 
-    fn check_file(&self, syntax: &syn::File, file: &Path) -> Vec<Diagnostic> {
+    fn check_file(&self, syntax: &syn::File, _content: &str, file: &Path) -> Vec<Diagnostic> {
         let mut visitor = FileVisitor {
             level: self.level,
             max_clones_per_fn: self.max_clones_per_fn,
@@ -188,7 +188,7 @@ mod tests {
     fn parse_and_check_with_config(code: &str, config: &Config) -> Vec<Diagnostic> {
         let syntax = syn::parse_file(code).expect("failed to parse test code");
         let rule = Rule::new(config);
-        rule.check_file(&syntax, Path::new("test.rs"))
+        rule.check_file(&syntax, "", Path::new("test.rs"))
     }
 
     #[test]
