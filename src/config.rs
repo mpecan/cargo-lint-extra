@@ -3,9 +3,9 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 pub use crate::config_test_overrides::{
-    AllowAuditOverride, FileHeaderOverride, FileLengthOverride, InlineCommentsOverride,
-    LineLengthOverride, RedundantCommentsOverride, TestConfig, TestRulesOverrides,
-    TodoCommentsOverride,
+    AllowAuditOverride, CloneDensityOverride, FileHeaderOverride, FileLengthOverride,
+    InlineCommentsOverride, LineLengthOverride, RedundantCommentsOverride, TestConfig,
+    TestRulesOverrides, TodoCommentsOverride,
 };
 
 #[derive(Debug, Default, Deserialize)]
@@ -32,6 +32,7 @@ pub struct RulesConfig {
     pub allow_audit: AllowAuditConfig,
     pub inline_comments: InlineCommentsConfig,
     pub redundant_comments: RedundantCommentsConfig,
+    pub clone_density: CloneDensityConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -192,6 +193,24 @@ impl Default for RedundantCommentsConfig {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct CloneDensityConfig {
+    pub level: RuleLevel,
+    pub max_clones_per_fn: usize,
+    pub max_clone_ratio: f64,
+}
+
+impl Default for CloneDensityConfig {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            max_clones_per_fn: 5,
+            max_clone_ratio: 0.1,
+        }
+    }
+}
+
 pub const CONFIG_FILE_NAME: &str = ".cargo-lint-extra.toml";
 
 impl Config {
@@ -257,6 +276,9 @@ mod tests {
         assert_eq!(config.rules.redundant_comments.level, RuleLevel::Warn);
         assert!((config.rules.redundant_comments.similarity_threshold - 0.5).abs() < f64::EPSILON);
         assert_eq!(config.rules.redundant_comments.min_words, 2);
+        assert_eq!(config.rules.clone_density.level, RuleLevel::Warn);
+        assert_eq!(config.rules.clone_density.max_clones_per_fn, 5);
+        assert!((config.rules.clone_density.max_clone_ratio - 0.1).abs() < f64::EPSILON);
     }
 
     #[test]
