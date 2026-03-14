@@ -10,8 +10,7 @@ use cargo_lint_extra::diagnostic::RuleLevel;
 #[test]
 fn test_redundant_comments_detected() {
     let config = Config::default();
-    let diags =
-        test_helpers::run_on_fixture("redundant_comments.rs", "redundant-comments", &config);
+    let diags = test_helpers::run_on_fixture("redundant_comments.rs", &config);
     let rc: Vec<_> = diags
         .iter()
         .filter(|d| d.rule == "redundant-comments")
@@ -29,8 +28,7 @@ fn test_redundant_comments_detected() {
 fn test_redundant_comments_disabled() {
     let mut config = Config::default();
     config.rules.redundant_comments.level = RuleLevel::Allow;
-    let diags =
-        test_helpers::run_on_fixture("redundant_comments.rs", "redundant-disabled", &config);
+    let diags = test_helpers::run_on_fixture("redundant_comments.rs", &config);
     assert!(
         !diags.iter().any(|d| d.rule == "redundant-comments"),
         "disabled redundant-comments rule should produce no diagnostics"
@@ -40,8 +38,7 @@ fn test_redundant_comments_disabled() {
 #[test]
 fn test_redundant_comments_suppression() {
     let config = Config::default();
-    let diags =
-        test_helpers::run_on_fixture("redundant_comments.rs", "redundant-suppression", &config);
+    let diags = test_helpers::run_on_fixture("redundant_comments.rs", &config);
     // The "return the value" comment at line 30 is suppressed via cargo-lint-extra:allow
     let rc: Vec<_> = diags
         .iter()

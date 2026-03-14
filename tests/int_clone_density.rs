@@ -8,7 +8,7 @@ use cargo_lint_extra::diagnostic::RuleLevel;
 #[test]
 fn test_clone_density_detected() {
     let config = Config::default();
-    let diags = test_helpers::run_on_fixture("clone_density.rs", "clone-density", &config);
+    let diags = test_helpers::run_on_fixture("clone_density.rs", &config);
     let clone_diags: Vec<_> = diags.iter().filter(|d| d.rule == "clone-density").collect();
     assert_eq!(
         clone_diags.len(),
@@ -32,7 +32,7 @@ fn test_clone_density_detected() {
 fn test_clone_density_disabled() {
     let mut config = Config::default();
     config.rules.clone_density.level = RuleLevel::Allow;
-    let diags = test_helpers::run_on_fixture("clone_density.rs", "clone-density-disabled", &config);
+    let diags = test_helpers::run_on_fixture("clone_density.rs", &config);
     assert!(
         !diags.iter().any(|d| d.rule == "clone-density"),
         "disabled clone-density rule should produce no diagnostics"
@@ -47,7 +47,7 @@ fn test_clone_density_custom_thresholds() {
         max_clones_per_fn: 10,
         max_clone_ratio: 1.0,
     };
-    let diags = test_helpers::run_on_fixture("clone_density.rs", "clone-density-relaxed", &config);
+    let diags = test_helpers::run_on_fixture("clone_density.rs", &config);
     let clone_diags: Vec<_> = diags.iter().filter(|d| d.rule == "clone-density").collect();
     assert!(
         clone_diags.is_empty(),

@@ -26,7 +26,7 @@ fn config_with_test_line_length_override(soft_limit: usize) -> Config {
 fn test_override_test_file_uses_test_rules() {
     // With a high soft_limit for tests, test file should have no line-length diagnostics
     let config = config_with_test_line_length_override(200);
-    let diags = test_helpers::run_on_fixture_dir("test_override", "override-test-file", &config);
+    let diags = test_helpers::run_on_fixture_dir("test_override", &config);
     let test_file_diags: Vec<_> = diags
         .iter()
         .filter(|d| d.file.to_string_lossy().contains("tests/"))
@@ -42,7 +42,7 @@ fn test_override_test_file_uses_test_rules() {
 fn test_override_prod_file_still_flagged() {
     // Prod code should still be flagged even with relaxed test limit
     let config = config_with_test_line_length_override(200);
-    let diags = test_helpers::run_on_fixture_dir("test_override", "override-prod-flagged", &config);
+    let diags = test_helpers::run_on_fixture_dir("test_override", &config);
     let has_prod_diags = diags
         .iter()
         .filter(|d| d.file.to_string_lossy().contains("src/"))
@@ -58,7 +58,7 @@ fn test_override_cfg_test_block_uses_test_rules() {
     // In a mixed file (src/main.rs with #[cfg(test)]), the #[cfg(test)] block
     // should use test rules (relaxed), while prod code uses prod rules.
     let config = config_with_test_line_length_override(200);
-    let diags = test_helpers::run_on_fixture_dir("test_override", "override-cfg-test", &config);
+    let diags = test_helpers::run_on_fixture_dir("test_override", &config);
 
     let src_main_diags: Vec<_> = diags
         .iter()
@@ -85,7 +85,7 @@ fn test_override_cfg_test_block_uses_test_rules() {
 fn test_override_no_test_config_no_split() {
     // Without test config, all files are treated uniformly
     let config = Config::default();
-    let diags = test_helpers::run_on_fixture_dir("test_override", "override-no-config", &config);
+    let diags = test_helpers::run_on_fixture_dir("test_override", &config);
     let all_line_length: Vec<_> = diags.iter().filter(|d| d.rule == "line-length").collect();
     // Both prod and test lines should be flagged with default rules
     assert!(
@@ -112,7 +112,7 @@ fn test_override_suffix_pattern() {
         }),
         ..Config::default()
     };
-    let diags = test_helpers::run_on_fixture_dir("test_override", "override-suffix", &config);
+    let diags = test_helpers::run_on_fixture_dir("test_override", &config);
     // test_main.rs doesn't match *_test.rs (it's test_main, not main_test)
     // so it should be flagged with prod rules
     let has_test_file_diags = diags

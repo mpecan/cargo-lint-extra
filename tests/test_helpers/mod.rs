@@ -1,4 +1,5 @@
 use cargo_lint_extra::config::Config;
+use cargo_lint_extra::diagnostic::Diagnostic;
 use cargo_lint_extra::engine::Engine;
 use std::path::PathBuf;
 
@@ -10,20 +11,12 @@ pub fn fixture_path(name: &str) -> PathBuf {
         .join(name)
 }
 
-#[allow(dead_code)]
-pub fn run_on_fixture_dir(
-    fixture_dir: &str,
-    test_name: &str,
-    config: &Config,
-) -> Vec<cargo_lint_extra::diagnostic::Diagnostic> {
+#[allow(dead_code, clippy::expect_used)]
+pub fn run_on_fixture_dir(fixture_dir: &str, config: &Config) -> Vec<Diagnostic> {
+    let tmp = tempfile::tempdir().expect("failed to create temp dir");
+    copy_dir_recursive(&fixture_path(fixture_dir), tmp.path());
     let engine = Engine::new(config);
-    let path = fixture_path(fixture_dir);
-    let tmp = std::env::temp_dir().join(format!("cargo-lint-extra-int-{test_name}"));
-    let _ = std::fs::remove_dir_all(&tmp);
-    copy_dir_recursive(&path, &tmp);
-    let result = engine.run(&tmp);
-    let _ = std::fs::remove_dir_all(&tmp);
-    result
+    engine.run(tmp.path())
 }
 
 #[allow(dead_code, clippy::unwrap_used)]
@@ -41,19 +34,10 @@ pub fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) {
     }
 }
 
-#[allow(dead_code)]
-pub fn run_on_fixture(
-    name: &str,
-    test_name: &str,
-    config: &Config,
-) -> Vec<cargo_lint_extra::diagnostic::Diagnostic> {
+#[allow(dead_code, clippy::unwrap_used, clippy::expect_used)]
+pub fn run_on_fixture(name: &str, config: &Config) -> Vec<Diagnostic> {
+    let tmp = tempfile::tempdir().expect("failed to create temp dir");
+    std::fs::copy(fixture_path(name), tmp.path().join(name)).unwrap();
     let engine = Engine::new(config);
-    let path = fixture_path(name);
-    let tmp = std::env::temp_dir().join(format!("cargo-lint-extra-int-{test_name}"));
-    let _ = std::fs::remove_dir_all(&tmp);
-    let _ = std::fs::create_dir_all(&tmp);
-    std::fs::copy(&path, tmp.join(name)).unwrap();
-    let result = engine.run(&tmp);
-    let _ = std::fs::remove_dir_all(&tmp);
-    result
+    engine.run(tmp.path())
 }

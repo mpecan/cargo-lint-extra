@@ -14,7 +14,7 @@ fn test_file_length_soft_limit_warns() {
         ..FileLengthConfig::default()
     };
     // clean.rs has 5 lines, exceeding the soft limit of 4
-    let diags = test_helpers::run_on_fixture("clean.rs", "file-length-soft", &config);
+    let diags = test_helpers::run_on_fixture("clean.rs", &config);
     let fl: Vec<_> = diags.iter().filter(|d| d.rule == "file-length").collect();
     assert_eq!(fl.len(), 1, "expected 1 file-length diagnostic, got {fl:?}");
     assert_eq!(fl[0].level, RuleLevel::Warn);
@@ -29,7 +29,7 @@ fn test_file_length_hard_limit_denies() {
         hard_limit: 3,
         ..FileLengthConfig::default()
     };
-    let diags = test_helpers::run_on_fixture("clean.rs", "file-length-hard", &config);
+    let diags = test_helpers::run_on_fixture("clean.rs", &config);
     let fl: Vec<_> = diags.iter().filter(|d| d.rule == "file-length").collect();
     assert_eq!(fl.len(), 1, "expected 1 file-length diagnostic, got {fl:?}");
     assert_eq!(fl[0].level, RuleLevel::Deny);

@@ -8,7 +8,7 @@ use cargo_lint_extra::diagnostic::RuleLevel;
 #[test]
 fn test_inline_comments_detected() {
     let config = Config::default();
-    let diags = test_helpers::run_on_fixture("inline_comments.rs", "inline-comments", &config);
+    let diags = test_helpers::run_on_fixture("inline_comments.rs", &config);
     let inline: Vec<_> = diags
         .iter()
         .filter(|d| d.rule == "inline-comments")
@@ -44,7 +44,7 @@ fn test_inline_comments_detected() {
 fn test_inline_comments_disabled() {
     let mut config = Config::default();
     config.rules.inline_comments.level = RuleLevel::Allow;
-    let diags = test_helpers::run_on_fixture("inline_comments.rs", "inline-disabled", &config);
+    let diags = test_helpers::run_on_fixture("inline_comments.rs", &config);
     assert!(
         !diags.iter().any(|d| d.rule == "inline-comments"),
         "disabled inline-comments rule should produce no diagnostics"
