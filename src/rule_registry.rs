@@ -107,5 +107,6 @@ declare_rules! {
         clone_density: "clone-density",
         glob_imports: "glob-imports",
         magic_numbers: "magic-numbers",
+        undocumented_panic: "undocumented-panic",
     }
 }
