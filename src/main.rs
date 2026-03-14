@@ -114,23 +114,21 @@ fn main() {
 
 fn apply_overrides(config: &mut Config, enable: &[String], disable: &[String]) {
     for rule in enable {
-        set_rule_level(config, rule, RuleLevel::Warn);
+        if !cargo_lint_extra::rule_registry::set_rule_level(
+            &mut config.rules,
+            rule,
+            RuleLevel::Warn,
+        ) {
+            eprintln!("warning: unknown rule '{rule}'");
+        }
     }
     for rule in disable {
-        set_rule_level(config, rule, RuleLevel::Allow);
-    }
-}
-
-fn set_rule_level(config: &mut Config, rule: &str, level: RuleLevel) {
-    match rule {
-        "line-length" => config.rules.line_length.level = level,
-        "file-length" => config.rules.file_length.level = level,
-        "todo-comments" => config.rules.todo_comments.level = level,
-        "file-header" => config.rules.file_header.level = level,
-        "allow-audit" => config.rules.allow_audit.level = level,
-        "inline-comments" => config.rules.inline_comments.level = level,
-        "redundant-comments" => config.rules.redundant_comments.level = level,
-        "clone-density" => config.rules.clone_density.level = level,
-        _ => eprintln!("warning: unknown rule '{rule}'"),
+        if !cargo_lint_extra::rule_registry::set_rule_level(
+            &mut config.rules,
+            rule,
+            RuleLevel::Allow,
+        ) {
+            eprintln!("warning: unknown rule '{rule}'");
+        }
     }
 }

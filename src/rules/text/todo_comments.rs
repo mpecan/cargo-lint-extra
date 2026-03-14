@@ -1,16 +1,67 @@
-use crate::config::TodoCommentsConfig;
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::TextRule;
+use serde::Deserialize;
 use std::path::Path;
 
-pub struct TodoCommentsRule {
+// --- Config ---
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub level: RuleLevel,
+    pub keywords: Vec<String>,
+    pub allow_with_issue: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            keywords: vec![
+                "TODO".to_string(),
+                "FIXME".to_string(),
+                "HACK".to_string(),
+                "XXX".to_string(),
+            ],
+            allow_with_issue: true,
+        }
+    }
+}
+
+// --- Test Override ---
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Override {
+    pub level: Option<RuleLevel>,
+    pub keywords: Option<Vec<String>>,
+    pub allow_with_issue: Option<bool>,
+}
+
+pub fn apply_override(cfg: &mut Config, o: &Override) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = &o.keywords {
+        cfg.keywords.clone_from(v);
+    }
+    if let Some(v) = o.allow_with_issue {
+        cfg.allow_with_issue = v;
+    }
+}
+
+// --- Rule ---
+pub struct Rule {
     level: RuleLevel,
     keywords: Vec<String>,
     allow_with_issue: bool,
 }
 
-impl TodoCommentsRule {
-    pub fn new(config: &TodoCommentsConfig) -> Self {
+/// Backward-compatible alias.
+pub type TodoCommentsRule = Rule;
+/// Backward-compatible alias.
+pub type TodoCommentsConfig = Config;
+
+impl Rule {
+    pub fn new(config: &Config) -> Self {
         Self {
             level: config.level,
             keywords: config.keywords.clone(),
@@ -29,7 +80,7 @@ impl TodoCommentsRule {
     }
 }
 
-impl TextRule for TodoCommentsRule {
+impl TextRule for Rule {
     fn name(&self) -> &'static str {
         "todo-comments"
     }
@@ -81,8 +132,8 @@ impl TextRule for TodoCommentsRule {
 mod tests {
     use super::*;
 
-    fn default_rule() -> TodoCommentsRule {
-        TodoCommentsRule::new(&TodoCommentsConfig::default())
+    fn default_rule() -> Rule {
+        Rule::new(&Config::default())
     }
 
     #[test]
@@ -149,9 +200,9 @@ mod tests {
 
     #[test]
     fn test_todo_with_issue_disallowed() {
-        let rule = TodoCommentsRule::new(&TodoCommentsConfig {
+        let rule = Rule::new(&Config {
             allow_with_issue: false,
-            ..TodoCommentsConfig::default()
+            ..Config::default()
         });
         assert!(
             rule.check_line("// TODO(#123): fix later", 1, Path::new("test.rs"))

@@ -1,17 +1,67 @@
-use crate::config::LineLengthConfig;
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::TextRule;
+use serde::Deserialize;
 use std::path::Path;
 
-pub struct LineLengthRule {
+// --- Config ---
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub level: RuleLevel,
+    pub soft_limit: usize,
+    pub hard_limit: usize,
+    pub url_exception: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            soft_limit: 120,
+            hard_limit: 200,
+            url_exception: true,
+        }
+    }
+}
+
+// --- Test Override ---
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Override {
+    pub level: Option<RuleLevel>,
+    pub soft_limit: Option<usize>,
+    pub hard_limit: Option<usize>,
+    pub url_exception: Option<bool>,
+}
+
+pub const fn apply_override(cfg: &mut Config, o: &Override) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = o.soft_limit {
+        cfg.soft_limit = v;
+    }
+    if let Some(v) = o.hard_limit {
+        cfg.hard_limit = v;
+    }
+    if let Some(v) = o.url_exception {
+        cfg.url_exception = v;
+    }
+}
+
+// --- Rule ---
+pub struct Rule {
     level: RuleLevel,
     soft_limit: usize,
     hard_limit: usize,
     url_exception: bool,
 }
 
-impl LineLengthRule {
-    pub const fn new(config: &LineLengthConfig) -> Self {
+/// Backward-compatible alias.
+pub type LineLengthRule = Rule;
+
+impl Rule {
+    pub const fn new(config: &Config) -> Self {
         Self {
             level: config.level,
             soft_limit: config.soft_limit,
@@ -45,7 +95,7 @@ impl LineLengthRule {
     }
 }
 
-impl TextRule for LineLengthRule {
+impl TextRule for Rule {
     fn name(&self) -> &'static str {
         "line-length"
     }
@@ -93,7 +143,7 @@ mod tests {
     use super::*;
 
     fn default_rule() -> LineLengthRule {
-        LineLengthRule::new(&LineLengthConfig::default())
+        LineLengthRule::new(&Config::default())
     }
 
     #[test]
@@ -151,9 +201,9 @@ mod tests {
 
     #[test]
     fn test_url_exception_disabled() {
-        let rule = LineLengthRule::new(&LineLengthConfig {
+        let rule = LineLengthRule::new(&Config {
             url_exception: false,
-            ..LineLengthConfig::default()
+            ..Config::default()
         });
         let line = format!("// see https://example.com/{}", "x".repeat(200));
         assert!(rule.check_line(&line, 1, Path::new("test.rs")).is_some());
@@ -161,9 +211,9 @@ mod tests {
 
     #[test]
     fn test_level_deny_promotes_soft_limit_to_error() {
-        let rule = LineLengthRule::new(&LineLengthConfig {
+        let rule = LineLengthRule::new(&Config {
             level: RuleLevel::Deny,
-            ..LineLengthConfig::default()
+            ..Config::default()
         });
         let long_line = "x".repeat(121);
         let diag = rule
@@ -174,10 +224,10 @@ mod tests {
 
     #[test]
     fn test_custom_limits() {
-        let rule = LineLengthRule::new(&LineLengthConfig {
+        let rule = LineLengthRule::new(&Config {
             soft_limit: 80,
             hard_limit: 100,
-            ..LineLengthConfig::default()
+            ..Config::default()
         });
         assert!(
             rule.check_line(&"x".repeat(80), 1, Path::new("test.rs"))
