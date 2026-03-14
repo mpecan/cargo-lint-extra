@@ -1,16 +1,87 @@
-use crate::config::FileLengthConfig;
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::TextRule;
+use serde::Deserialize;
 use std::path::Path;
 
-pub struct FileLengthRule {
+// --- Config ---
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub level: RuleLevel,
+    pub soft_limit: usize,
+    pub hard_limit: usize,
+    /// Deprecated alias for `soft_limit`. If set (non-zero), overrides `soft_limit`.
+    #[doc(hidden)]
+    #[serde(default)]
+    pub max: usize,
+}
+
+/// Default `soft_limit` value, used to detect whether `soft_limit` was explicitly set.
+const DEFAULT_SOFT_LIMIT: usize = 500;
+
+impl Config {
+    /// After deserialization, migrate the deprecated `max` field to `soft_limit`.
+    /// Prints a deprecation warning to stderr. If both `max` and a non-default
+    /// `soft_limit` are set, `soft_limit` takes precedence.
+    pub fn migrate_deprecated(&mut self) {
+        if self.max > 0 {
+            eprintln!(
+                "warning: 'max' in [rules.file-length] is deprecated, use 'soft_limit' instead"
+            );
+            if self.soft_limit == DEFAULT_SOFT_LIMIT {
+                self.soft_limit = self.max;
+            }
+            self.max = 0;
+        }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            soft_limit: 500,
+            hard_limit: 1000,
+            max: 0,
+        }
+    }
+}
+
+// --- Test Override ---
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Override {
+    pub level: Option<RuleLevel>,
+    pub soft_limit: Option<usize>,
+    pub hard_limit: Option<usize>,
+}
+
+pub const fn apply_override(cfg: &mut Config, o: &Override) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = o.soft_limit {
+        cfg.soft_limit = v;
+    }
+    if let Some(v) = o.hard_limit {
+        cfg.hard_limit = v;
+    }
+}
+
+// --- Rule ---
+pub struct Rule {
     level: RuleLevel,
     soft_limit: usize,
     hard_limit: usize,
 }
 
-impl FileLengthRule {
-    pub const fn new(config: &FileLengthConfig) -> Self {
+/// Backward-compatible alias.
+pub type FileLengthRule = Rule;
+/// Backward-compatible alias.
+pub type FileLengthConfig = Config;
+
+impl Rule {
+    pub const fn new(config: &Config) -> Self {
         Self {
             level: config.level,
             soft_limit: config.soft_limit,
@@ -28,7 +99,7 @@ impl FileLengthRule {
     }
 }
 
-impl TextRule for FileLengthRule {
+impl TextRule for Rule {
     fn name(&self) -> &'static str {
         "file-length"
     }
@@ -65,8 +136,8 @@ impl TextRule for FileLengthRule {
 mod tests {
     use super::*;
 
-    fn default_rule() -> FileLengthRule {
-        FileLengthRule::new(&FileLengthConfig::default())
+    fn default_rule() -> Rule {
+        Rule::new(&Config::default())
     }
 
     #[test]
@@ -115,9 +186,9 @@ mod tests {
 
     #[test]
     fn test_level_deny_promotes_soft_limit_to_error() {
-        let rule = FileLengthRule::new(&FileLengthConfig {
+        let rule = Rule::new(&Config {
             level: RuleLevel::Deny,
-            ..FileLengthConfig::default()
+            ..Config::default()
         });
         let content = "line\n".repeat(501);
         let diags = rule.check_file(&content, Path::new("test.rs"));
@@ -127,9 +198,9 @@ mod tests {
 
     #[test]
     fn test_level_warn_keeps_soft_limit_as_warning() {
-        let rule = FileLengthRule::new(&FileLengthConfig {
+        let rule = Rule::new(&Config {
             level: RuleLevel::Warn,
-            ..FileLengthConfig::default()
+            ..Config::default()
         });
         let content = "line\n".repeat(501);
         let diags = rule.check_file(&content, Path::new("test.rs"));
@@ -138,10 +209,10 @@ mod tests {
 
     #[test]
     fn test_custom_limits() {
-        let rule = FileLengthRule::new(&FileLengthConfig {
+        let rule = Rule::new(&Config {
             soft_limit: 10,
             hard_limit: 20,
-            ..FileLengthConfig::default()
+            ..Config::default()
         });
         assert!(
             rule.check_file(&"line\n".repeat(10), Path::new("test.rs"))

@@ -1,13 +1,6 @@
-use crate::config::{Config, RulesConfig, TestConfig};
+use crate::config::{Config, TestConfig};
 use crate::diagnostic::{Diagnostic, RuleLevel};
-use crate::rules::ast::allow_audit::AllowAuditRule;
-use crate::rules::ast::clone_density::CloneDensityRule;
-use crate::rules::text::file_header::FileHeaderRule;
-use crate::rules::text::file_length::FileLengthRule;
-use crate::rules::text::inline_comments::InlineCommentsRule;
-use crate::rules::text::line_length::LineLengthRule;
-use crate::rules::text::redundant_comments::RedundantCommentsRule;
-use crate::rules::text::todo_comments::TodoCommentsRule;
+use crate::rule_registry::{self, RulesConfig};
 use crate::rules::{AstRule, TextRule};
 use crate::suppression::SuppressionMap;
 use crate::test_detection::TestLineRanges;
@@ -29,38 +22,10 @@ type TextRules = Vec<Box<dyn TextRule>>;
 type AstRules = Vec<Box<dyn AstRule>>;
 
 fn build_rules(rules: &RulesConfig) -> (TextRules, AstRules) {
-    let mut text_rules: Vec<Box<dyn TextRule>> = Vec::new();
-    let mut ast_rules: Vec<Box<dyn AstRule>> = Vec::new();
-
-    if rules.line_length.level != RuleLevel::Allow {
-        text_rules.push(Box::new(LineLengthRule::new(&rules.line_length)));
-    }
-    if rules.file_length.level != RuleLevel::Allow {
-        text_rules.push(Box::new(FileLengthRule::new(&rules.file_length)));
-    }
-    if rules.todo_comments.level != RuleLevel::Allow {
-        text_rules.push(Box::new(TodoCommentsRule::new(&rules.todo_comments)));
-    }
-    if rules.file_header.level != RuleLevel::Allow {
-        text_rules.push(Box::new(FileHeaderRule::new(&rules.file_header)));
-    }
-    if rules.inline_comments.level != RuleLevel::Allow {
-        text_rules.push(Box::new(InlineCommentsRule::new(&rules.inline_comments)));
-    }
-    if rules.redundant_comments.level != RuleLevel::Allow {
-        text_rules.push(Box::new(RedundantCommentsRule::new(
-            &rules.redundant_comments,
-        )));
-    }
-
-    if rules.allow_audit.level != RuleLevel::Allow {
-        ast_rules.push(Box::new(AllowAuditRule::new(&rules.allow_audit)));
-    }
-    if rules.clone_density.level != RuleLevel::Allow {
-        ast_rules.push(Box::new(CloneDensityRule::new(&rules.clone_density)));
-    }
-
-    (text_rules, ast_rules)
+    (
+        rule_registry::build_text_rules(rules),
+        rule_registry::build_ast_rules(rules),
+    )
 }
 
 impl Engine {

@@ -26,12 +26,14 @@
 | `src/config.rs` | TOML config loading with `#[serde(default)]` |
 | `src/diagnostic.rs` | `Diagnostic` type and formatting (human/JSON) |
 | `src/engine.rs` | File walking (`ignore`), parallel processing (`rayon`), rule orchestration |
+| `src/rule_registry.rs` | `declare_rules!` macro: generates `RulesConfig`, `TestRulesOverrides`, rule builders, and override plumbing |
 | `src/suppression.rs` | Comment-based inline suppression (`// cargo-lint-extra:allow(...)`) |
 | `src/rules/mod.rs` | `TextRule` and `AstRule` trait definitions |
 | `src/rules/text/` | Text-based rules (line-by-line + whole-file) |
 | `src/rules/ast/` | AST-based rules (via `syn`) |
 | `tests/fixtures/` | Fixture files with known violations |
-| `tests/integration_test.rs` | Engine-level integration tests |
+| `tests/int_*.rs` | Per-rule integration tests (one file per rule/feature) |
+| `tests/test_helpers/` | Shared integration test helpers (fixture runners) |
 | `tests/cli_test.rs` | CLI binary tests (exit codes, output) |
 
 ### Rule traits
@@ -119,15 +121,19 @@ Use [Conventional Commits](https://www.conventionalcommits.org/): `feat`, `fix`,
 
 ## Adding a new rule
 
-1. Create `src/rules/text/my_rule.rs` (or `src/rules/ast/` for AST rules)
-2. Implement `TextRule` or `AstRule` trait with a kebab-case `name()`
-3. Add config struct to `src/config.rs` with `#[serde(default)]` and a `Default` impl
-4. Add the field to `RulesConfig` (kebab-case serde rename is automatic)
-5. Wire it up in `src/engine.rs` — instantiate only if `level != Allow`
-6. Add the rule name to `set_rule_level()` in `src/main.rs`
-7. Add a test fixture in `tests/fixtures/`
-8. Write unit tests and integration tests
-9. Update README.md with rule documentation
+1. Create `src/rules/{text,ast}/my_rule.rs` with all self-contained components:
+   - `pub struct Config` with `#[serde(default)]` and a `Default` impl
+   - `pub struct Override` with optional fields for test overrides
+   - `pub fn apply_override(cfg: &mut Config, o: &Override)` — use `const fn` when all fields are `Copy`; use plain `fn` when fields require `.clone_from()` (e.g. `Vec`, `Option<String>`)
+   - `pub struct Rule` implementing `TextRule` or `AstRule` with a kebab-case `name()`
+   - `#[cfg(test)] mod tests` with unit tests
+2. Add `pub mod my_rule;` to `src/rules/{text,ast}/mod.rs`
+3. Add `my_rule: "my-rule",` to the `declare_rules!` invocation in `src/rule_registry.rs`
+4. Add a test fixture in `tests/fixtures/`
+5. Add integration tests in a new `tests/int_my_rule.rs` file
+6. Update README.md with rule documentation
+
+Only steps 2 and 3 touch shared files, and both are append-only (one line each), so parallel PRs adding different rules will auto-merge without conflicts.
 
 ## Self-linting
 

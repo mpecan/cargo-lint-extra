@@ -1,16 +1,60 @@
-use crate::config::AllowAuditConfig;
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::AstRule;
+use serde::Deserialize;
 use std::path::Path;
 use syn::visit::Visit;
 
-pub struct AllowAuditRule {
+// --- Config ---
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub level: RuleLevel,
+    pub flagged: Vec<String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Allow,
+            flagged: vec![
+                "dead_code".to_string(),
+                "unused_variables".to_string(),
+                "unused_imports".to_string(),
+            ],
+        }
+    }
+}
+
+// --- Test Override ---
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Override {
+    pub level: Option<RuleLevel>,
+    pub flagged: Option<Vec<String>>,
+}
+
+pub fn apply_override(cfg: &mut Config, o: &Override) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = &o.flagged {
+        cfg.flagged.clone_from(v);
+    }
+}
+
+// --- Rule ---
+pub struct Rule {
     level: RuleLevel,
     flagged: Vec<String>,
 }
 
-impl AllowAuditRule {
-    pub fn new(config: &AllowAuditConfig) -> Self {
+/// Backward-compatible alias.
+pub type AllowAuditRule = Rule;
+/// Backward-compatible alias.
+pub type AllowAuditConfig = Config;
+
+impl Rule {
+    pub fn new(config: &Config) -> Self {
         Self {
             level: config.level,
             flagged: config.flagged.clone(),
@@ -50,7 +94,7 @@ impl<'ast> Visit<'ast> for AllowVisitor<'_> {
     }
 }
 
-impl AstRule for AllowAuditRule {
+impl AstRule for Rule {
     fn name(&self) -> &'static str {
         "allow-audit"
     }
@@ -74,11 +118,11 @@ mod tests {
 
     fn parse_and_check(code: &str) -> Vec<Diagnostic> {
         let syntax = syn::parse_file(code).expect("failed to parse test code");
-        let config = AllowAuditConfig {
+        let config = Config {
             level: RuleLevel::Warn,
-            ..AllowAuditConfig::default()
+            ..Config::default()
         };
-        let rule = AllowAuditRule::new(&config);
+        let rule = Rule::new(&config);
         rule.check_file(&syntax, Path::new("test.rs"))
     }
 

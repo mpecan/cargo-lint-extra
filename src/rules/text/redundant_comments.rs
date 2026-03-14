@@ -1,18 +1,64 @@
-use crate::config::RedundantCommentsConfig;
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::TextRule;
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::LazyLock;
 
-pub struct RedundantCommentsRule {
+// --- Config ---
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub level: RuleLevel,
+    pub similarity_threshold: f64,
+    pub min_words: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            similarity_threshold: 0.5,
+            min_words: 2,
+        }
+    }
+}
+
+// --- Test Override ---
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Override {
+    pub level: Option<RuleLevel>,
+    pub similarity_threshold: Option<f64>,
+    pub min_words: Option<usize>,
+}
+
+pub const fn apply_override(cfg: &mut Config, o: &Override) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = o.similarity_threshold {
+        cfg.similarity_threshold = v;
+    }
+    if let Some(v) = o.min_words {
+        cfg.min_words = v;
+    }
+}
+
+// --- Rule ---
+pub struct Rule {
     level: RuleLevel,
     similarity_threshold: f64,
     min_words: usize,
 }
 
-impl RedundantCommentsRule {
-    pub const fn new(config: &RedundantCommentsConfig) -> Self {
+/// Backward-compatible alias.
+pub type RedundantCommentsRule = Rule;
+/// Backward-compatible alias.
+pub type RedundantCommentsConfig = Config;
+
+impl Rule {
+    pub const fn new(config: &Config) -> Self {
         Self {
             level: config.level,
             similarity_threshold: config.similarity_threshold,
@@ -23,7 +69,7 @@ impl RedundantCommentsRule {
 
 const MAX_COMMENT_WORDS: usize = 20;
 
-impl TextRule for RedundantCommentsRule {
+impl TextRule for Rule {
     fn name(&self) -> &'static str {
         "redundant-comments"
     }

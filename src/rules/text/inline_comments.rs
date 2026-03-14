@@ -1,16 +1,60 @@
-use crate::config::InlineCommentsConfig;
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::TextRule;
+use serde::Deserialize;
 use std::path::Path;
 
-pub struct InlineCommentsRule {
+// --- Config ---
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub level: RuleLevel,
+    pub max_ratio: f64,
+    pub max_consecutive: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            max_ratio: 0.3,
+            max_consecutive: 3,
+        }
+    }
+}
+
+// --- Test Override ---
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Override {
+    pub level: Option<RuleLevel>,
+    pub max_ratio: Option<f64>,
+    pub max_consecutive: Option<usize>,
+}
+
+pub const fn apply_override(cfg: &mut Config, o: &Override) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = o.max_ratio {
+        cfg.max_ratio = v;
+    }
+    if let Some(v) = o.max_consecutive {
+        cfg.max_consecutive = v;
+    }
+}
+
+// --- Rule ---
+pub struct Rule {
     level: RuleLevel,
     max_ratio: f64,
     max_consecutive: usize,
 }
 
-impl InlineCommentsRule {
-    pub const fn new(config: &InlineCommentsConfig) -> Self {
+/// Backward-compatible alias.
+pub type InlineCommentsRule = Rule;
+
+impl Rule {
+    pub const fn new(config: &Config) -> Self {
         Self {
             level: config.level,
             max_ratio: config.max_ratio,
@@ -91,7 +135,7 @@ enum ScanContext {
     },
 }
 
-impl TextRule for InlineCommentsRule {
+impl TextRule for Rule {
     fn name(&self) -> &'static str {
         "inline-comments"
     }
@@ -152,7 +196,7 @@ impl TextRule for InlineCommentsRule {
     }
 }
 
-impl InlineCommentsRule {
+impl Rule {
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn evaluate_scope(
         &self,

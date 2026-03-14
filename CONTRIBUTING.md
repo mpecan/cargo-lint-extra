@@ -26,11 +26,13 @@ The project requires Rust 1.93.0 or later. See `rust-toolchain.toml` for the pin
 | `src/config.rs` | TOML configuration loading and structs |
 | `src/diagnostic.rs` | `Diagnostic` type and output formatting |
 | `src/engine.rs` | File walking, parallel processing, rule orchestration |
+| `src/rule_registry.rs` | `declare_rules!` macro: generates config structs, rule builders, and override plumbing |
 | `src/rules/mod.rs` | `TextRule` and `AstRule` trait definitions |
-| `src/rules/text/` | Text-based rule implementations |
-| `src/rules/ast/` | AST-based rule implementations |
+| `src/rules/text/` | Text-based rule implementations (each module is self-contained: config, override, rule, tests) |
+| `src/rules/ast/` | AST-based rule implementations (same self-contained structure) |
 | `tests/fixtures/` | Test fixture files with known violations |
-| `tests/integration_test.rs` | Engine-level integration tests |
+| `tests/int_*.rs` | Per-rule integration tests (one file per rule/feature) |
+| `tests/test_helpers/` | Shared integration test helpers (fixture runners) |
 | `tests/cli_test.rs` | CLI binary tests (exit codes, output formats) |
 
 ---
@@ -78,31 +80,34 @@ The project enforces strict Clippy rules (see `Cargo.toml`):
 
 ## Adding a new rule
 
-### Text-based rules
+Each rule module is self-contained — config, test override, rule implementation, and unit tests all live in one file.
 
-Text rules operate on raw file content — no parsing required.
+1. Create `src/rules/text/my_rule.rs` (or `src/rules/ast/` for AST rules) with:
+   - `pub struct Config` with `#[serde(default)]` and a `Default` impl
+   - `pub struct Override` with optional fields for test overrides
+   - `pub fn apply_override(cfg: &mut Config, o: &Override)`
+   - `pub struct Rule` implementing `TextRule` or `AstRule` with a kebab-case `name()`
+   - `#[cfg(test)] mod tests` with unit tests
+2. Add `pub mod my_rule;` to `src/rules/{text,ast}/mod.rs`
+3. Add `my_rule: "my-rule",` to the `declare_rules!` invocation in `src/rule_registry.rs`
+4. Add a test fixture in `tests/fixtures/`
+5. Add integration tests in a new `tests/int_my_rule.rs` file
 
-1. Create `src/rules/text/my_rule.rs`
-2. Implement the `TextRule` trait:
-   - `name()` — return the kebab-case rule name (e.g. `"my-rule"`)
-   - `check_line()` — check a single line, return `Option<Diagnostic>`
-   - `check_file()` — optionally check the whole file, return `Vec<Diagnostic>`
-3. Add the config struct to `src/config.rs` with `#[serde(default)]` and a `Default` impl
-4. Wire it up in `src/engine.rs` (instantiate if level != Allow)
-5. Add the rule name to `set_rule_level()` in `src/main.rs` for CLI overrides
-6. Add a test fixture in `tests/fixtures/`
-7. Write unit tests in the rule file and integration tests in `tests/integration_test.rs`
+Only steps 2 and 3 touch shared files (one line each, append-only), so parallel PRs auto-merge.
 
-### AST-based rules
+### Text rules
 
-AST rules use [syn](https://crates.io/crates/syn) to inspect the parsed syntax tree.
+Implement `TextRule`:
+- `name()` — return the kebab-case rule name (e.g. `"my-rule"`)
+- `check_line()` — check a single line, return `Option<Diagnostic>`
+- `check_file()` — optionally check the whole file, return `Vec<Diagnostic>`
 
-1. Create `src/rules/ast/my_rule.rs`
-2. Implement the `AstRule` trait:
-   - `name()` — return the kebab-case rule name
-   - `check_file()` — receive a `&syn::File` and return `Vec<Diagnostic>`
-3. Use `syn::visit::Visit` to walk the syntax tree
-4. Follow the same wiring steps as text rules
+### AST rules
+
+Implement `AstRule` using [syn](https://crates.io/crates/syn):
+- `name()` — return the kebab-case rule name
+- `check_file()` — receive a `&syn::File` and return `Vec<Diagnostic>`
+- Use `syn::visit::Visit` to walk the syntax tree
 
 ### Rule design guidelines
 

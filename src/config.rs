@@ -1,12 +1,28 @@
-use crate::diagnostic::RuleLevel;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
-pub use crate::config_test_overrides::{
-    AllowAuditOverride, CloneDensityOverride, FileHeaderOverride, FileLengthOverride,
-    InlineCommentsOverride, LineLengthOverride, RedundantCommentsOverride, TestConfig,
-    TestRulesOverrides, TodoCommentsOverride,
-};
+pub use crate::config_test_overrides::TestConfig;
+pub use crate::rule_registry::{RulesConfig, TestRulesOverrides};
+
+// Re-export per-rule config types for backward compatibility
+pub use crate::rules::ast::allow_audit::Config as AllowAuditConfig;
+pub use crate::rules::ast::clone_density::Config as CloneDensityConfig;
+pub use crate::rules::text::file_header::Config as FileHeaderConfig;
+pub use crate::rules::text::file_length::Config as FileLengthConfig;
+pub use crate::rules::text::inline_comments::Config as InlineCommentsConfig;
+pub use crate::rules::text::line_length::Config as LineLengthConfig;
+pub use crate::rules::text::redundant_comments::Config as RedundantCommentsConfig;
+pub use crate::rules::text::todo_comments::Config as TodoCommentsConfig;
+
+// Re-export per-rule override types for backward compatibility
+pub use crate::rules::ast::allow_audit::Override as AllowAuditOverride;
+pub use crate::rules::ast::clone_density::Override as CloneDensityOverride;
+pub use crate::rules::text::file_header::Override as FileHeaderOverride;
+pub use crate::rules::text::file_length::Override as FileLengthOverride;
+pub use crate::rules::text::inline_comments::Override as InlineCommentsOverride;
+pub use crate::rules::text::line_length::Override as LineLengthOverride;
+pub use crate::rules::text::redundant_comments::Override as RedundantCommentsOverride;
+pub use crate::rules::text::todo_comments::Override as TodoCommentsOverride;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
@@ -22,195 +38,6 @@ pub struct GlobalConfig {
     pub exclude: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default, rename_all = "kebab-case")]
-pub struct RulesConfig {
-    pub line_length: LineLengthConfig,
-    pub file_length: FileLengthConfig,
-    pub todo_comments: TodoCommentsConfig,
-    pub file_header: FileHeaderConfig,
-    pub allow_audit: AllowAuditConfig,
-    pub inline_comments: InlineCommentsConfig,
-    pub redundant_comments: RedundantCommentsConfig,
-    pub clone_density: CloneDensityConfig,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct LineLengthConfig {
-    pub level: RuleLevel,
-    pub soft_limit: usize,
-    pub hard_limit: usize,
-    pub url_exception: bool,
-}
-
-impl Default for LineLengthConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Warn,
-            soft_limit: 120,
-            hard_limit: 200,
-            url_exception: true,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct FileLengthConfig {
-    pub level: RuleLevel,
-    pub soft_limit: usize,
-    pub hard_limit: usize,
-    /// Deprecated alias for `soft_limit`. If set (non-zero), overrides `soft_limit`.
-    #[doc(hidden)]
-    #[serde(default)]
-    pub max: usize,
-}
-
-/// Default `soft_limit` value, used to detect whether `soft_limit` was explicitly set.
-const DEFAULT_SOFT_LIMIT: usize = 500;
-
-impl FileLengthConfig {
-    /// After deserialization, migrate the deprecated `max` field to `soft_limit`.
-    /// Prints a deprecation warning to stderr. If both `max` and a non-default
-    /// `soft_limit` are set, `soft_limit` takes precedence.
-    pub fn migrate_deprecated(&mut self) {
-        if self.max > 0 {
-            eprintln!(
-                "warning: 'max' in [rules.file-length] is deprecated, use 'soft_limit' instead"
-            );
-            if self.soft_limit == DEFAULT_SOFT_LIMIT {
-                self.soft_limit = self.max;
-            }
-            self.max = 0;
-        }
-    }
-}
-
-impl Default for FileLengthConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Warn,
-            soft_limit: 500,
-            hard_limit: 1000,
-            max: 0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct TodoCommentsConfig {
-    pub level: RuleLevel,
-    pub keywords: Vec<String>,
-    pub allow_with_issue: bool,
-}
-
-impl Default for TodoCommentsConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Warn,
-            keywords: vec![
-                "TODO".to_string(),
-                "FIXME".to_string(),
-                "HACK".to_string(),
-                "XXX".to_string(),
-            ],
-            allow_with_issue: true,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct FileHeaderConfig {
-    pub level: RuleLevel,
-    pub required: Option<String>,
-}
-
-impl Default for FileHeaderConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Allow,
-            required: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct AllowAuditConfig {
-    pub level: RuleLevel,
-    pub flagged: Vec<String>,
-}
-
-impl Default for AllowAuditConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Allow,
-            flagged: vec![
-                "dead_code".to_string(),
-                "unused_variables".to_string(),
-                "unused_imports".to_string(),
-            ],
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct InlineCommentsConfig {
-    pub level: RuleLevel,
-    pub max_ratio: f64,
-    pub max_consecutive: usize,
-}
-
-impl Default for InlineCommentsConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Warn,
-            max_ratio: 0.3,
-            max_consecutive: 3,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct RedundantCommentsConfig {
-    pub level: RuleLevel,
-    pub similarity_threshold: f64,
-    pub min_words: usize,
-}
-
-impl Default for RedundantCommentsConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Warn,
-            similarity_threshold: 0.5,
-            min_words: 2,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct CloneDensityConfig {
-    pub level: RuleLevel,
-    pub max_clones_per_fn: usize,
-    pub max_clone_ratio: f64,
-}
-
-impl Default for CloneDensityConfig {
-    fn default() -> Self {
-        Self {
-            level: RuleLevel::Warn,
-            max_clones_per_fn: 5,
-            max_clone_ratio: 0.1,
-        }
-    }
-}
-
 pub const CONFIG_FILE_NAME: &str = ".cargo-lint-extra.toml";
 
 impl Config {
@@ -221,7 +48,7 @@ impl Config {
             return self.rules.clone();
         };
         let mut rules = self.rules.clone();
-        crate::config_test_overrides::apply_test_overrides(&mut rules, &test.rules);
+        crate::rule_registry::apply_test_overrides(&mut rules, &test.rules);
         rules
     }
 
@@ -256,6 +83,7 @@ impl Config {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::diagnostic::RuleLevel;
     use std::fs;
 
     #[test]

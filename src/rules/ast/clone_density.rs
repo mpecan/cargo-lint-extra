@@ -1,17 +1,63 @@
-use crate::config::CloneDensityConfig;
 use crate::diagnostic::{Diagnostic, RuleLevel};
 use crate::rules::AstRule;
+use serde::Deserialize;
 use std::path::Path;
 use syn::visit::Visit;
 
-pub struct CloneDensityRule {
+// --- Config ---
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub level: RuleLevel,
+    pub max_clones_per_fn: usize,
+    pub max_clone_ratio: f64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: RuleLevel::Warn,
+            max_clones_per_fn: 5,
+            max_clone_ratio: 0.1,
+        }
+    }
+}
+
+// --- Test Override ---
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Override {
+    pub level: Option<RuleLevel>,
+    pub max_clones_per_fn: Option<usize>,
+    pub max_clone_ratio: Option<f64>,
+}
+
+pub const fn apply_override(cfg: &mut Config, o: &Override) {
+    if let Some(v) = o.level {
+        cfg.level = v;
+    }
+    if let Some(v) = o.max_clones_per_fn {
+        cfg.max_clones_per_fn = v;
+    }
+    if let Some(v) = o.max_clone_ratio {
+        cfg.max_clone_ratio = v;
+    }
+}
+
+// --- Rule ---
+pub struct Rule {
     level: RuleLevel,
     max_clones_per_fn: usize,
     max_clone_ratio: f64,
 }
 
-impl CloneDensityRule {
-    pub const fn new(config: &CloneDensityConfig) -> Self {
+/// Backward-compatible alias.
+pub type CloneDensityRule = Rule;
+/// Backward-compatible alias.
+pub type CloneDensityConfig = Config;
+
+impl Rule {
+    pub const fn new(config: &Config) -> Self {
         Self {
             level: config.level,
             max_clones_per_fn: config.max_clones_per_fn,
@@ -20,7 +66,7 @@ impl CloneDensityRule {
     }
 }
 
-impl AstRule for CloneDensityRule {
+impl AstRule for Rule {
     fn name(&self) -> &'static str {
         "clone-density"
     }
@@ -136,12 +182,12 @@ mod tests {
     use super::*;
 
     fn parse_and_check(code: &str) -> Vec<Diagnostic> {
-        parse_and_check_with_config(code, &CloneDensityConfig::default())
+        parse_and_check_with_config(code, &Config::default())
     }
 
-    fn parse_and_check_with_config(code: &str, config: &CloneDensityConfig) -> Vec<Diagnostic> {
+    fn parse_and_check_with_config(code: &str, config: &Config) -> Vec<Diagnostic> {
         let syntax = syn::parse_file(code).expect("failed to parse test code");
-        let rule = CloneDensityRule::new(config);
+        let rule = Rule::new(config);
         rule.check_file(&syntax, Path::new("test.rs"))
     }
 
@@ -207,7 +253,7 @@ fn cloney() {
 
     #[test]
     fn test_high_ratio_exceeds_threshold() {
-        let config = CloneDensityConfig {
+        let config = Config {
             level: RuleLevel::Warn,
             max_clones_per_fn: 100,
             max_clone_ratio: 0.1,
@@ -235,7 +281,7 @@ fn ratio_heavy() {
     #[test]
     fn test_ratio_skipped_for_small_functions() {
         // Small functions (< 10 statements) should not trigger ratio check
-        let config = CloneDensityConfig {
+        let config = Config {
             level: RuleLevel::Warn,
             max_clones_per_fn: 100,
             max_clone_ratio: 0.1,
@@ -282,9 +328,9 @@ impl Foo {
 
     #[test]
     fn test_deny_level_propagated() {
-        let config = CloneDensityConfig {
+        let config = Config {
             level: RuleLevel::Deny,
-            ..CloneDensityConfig::default()
+            ..Config::default()
         };
         let code = "\
 fn cloney() {
@@ -305,7 +351,7 @@ fn cloney() {
     #[test]
     fn test_ratio_boundary_9_statements() {
         // 9 statements: below MIN_STATEMENTS_FOR_RATIO, ratio check skipped
-        let config = CloneDensityConfig {
+        let config = Config {
             level: RuleLevel::Warn,
             max_clones_per_fn: 100,
             max_clone_ratio: 0.1,
@@ -330,7 +376,7 @@ fn boundary_9() {
     #[test]
     fn test_ratio_boundary_10_statements() {
         // 10 statements: at MIN_STATEMENTS_FOR_RATIO, ratio check applies
-        let config = CloneDensityConfig {
+        let config = Config {
             level: RuleLevel::Warn,
             max_clones_per_fn: 100,
             max_clone_ratio: 0.1,
