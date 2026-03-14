@@ -7,6 +7,7 @@ pub use crate::rule_registry::{RulesConfig, TestRulesOverrides};
 // Re-export per-rule config types for backward compatibility
 pub use crate::rules::ast::allow_audit::Config as AllowAuditConfig;
 pub use crate::rules::ast::clone_density::Config as CloneDensityConfig;
+pub use crate::rules::ast::glob_imports::Config as GlobImportsConfig;
 pub use crate::rules::text::file_header::Config as FileHeaderConfig;
 pub use crate::rules::text::file_length::Config as FileLengthConfig;
 pub use crate::rules::text::inline_comments::Config as InlineCommentsConfig;
@@ -17,6 +18,7 @@ pub use crate::rules::text::todo_comments::Config as TodoCommentsConfig;
 // Re-export per-rule override types for backward compatibility
 pub use crate::rules::ast::allow_audit::Override as AllowAuditOverride;
 pub use crate::rules::ast::clone_density::Override as CloneDensityOverride;
+pub use crate::rules::ast::glob_imports::Override as GlobImportsOverride;
 pub use crate::rules::text::file_header::Override as FileHeaderOverride;
 pub use crate::rules::text::file_length::Override as FileLengthOverride;
 pub use crate::rules::text::inline_comments::Override as InlineCommentsOverride;
@@ -107,6 +109,9 @@ mod tests {
         assert_eq!(config.rules.clone_density.level, RuleLevel::Warn);
         assert_eq!(config.rules.clone_density.max_clones_per_fn, 5);
         assert!((config.rules.clone_density.max_clone_ratio - 0.1).abs() < f64::EPSILON);
+        assert_eq!(config.rules.glob_imports.level, RuleLevel::Warn);
+        assert!(config.rules.glob_imports.allowed_crates.is_empty());
+        assert!(config.rules.glob_imports.allow_in_tests);
     }
 
     #[test]
