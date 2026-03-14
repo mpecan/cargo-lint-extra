@@ -71,9 +71,12 @@ impl FileVisitor<'_> {
                     "clone-density",
                     self.level,
                     format!(
-                        "function `{name}` has {} .clone() calls \
-                         (ratio: {ratio:.2}, limit: {} calls or {:.2} ratio)",
-                        counter.clone_count, self.max_clones_per_fn, self.max_clone_ratio,
+                        "function `{name}` has {} .clone() calls in {} statements \
+                         (ratio: {ratio:.3}, limit: {} calls or {:.2} ratio)",
+                        counter.clone_count,
+                        counter.statement_count,
+                        self.max_clones_per_fn,
+                        self.max_clone_ratio,
                     ),
                     self.file,
                 )
@@ -107,9 +110,17 @@ struct CloneCounter {
 
 impl<'ast> Visit<'ast> for CloneCounter {
     fn visit_stmt(&mut self, node: &'ast syn::Stmt) {
+        // Don't count inner item declarations as statements
+        if matches!(node, syn::Stmt::Item(_)) {
+            return;
+        }
         self.statement_count += 1;
         syn::visit::visit_stmt(self, node);
     }
+
+    // Stop traversal into nested functions/items so their clones
+    // aren't attributed to the enclosing function.
+    fn visit_item(&mut self, _node: &'ast syn::Item) {}
 
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         if node.method == "clone" && node.args.is_empty() {
@@ -187,7 +198,11 @@ fn cloney() {
         let diags = parse_and_check(code);
         assert_eq!(diags.len(), 1);
         assert!(diags[0].message.contains("cloney"));
-        assert!(diags[0].message.contains("6 .clone()"));
+        assert!(
+            diags[0]
+                .message
+                .contains("6 .clone() calls in 7 statements")
+        );
     }
 
     #[test]
@@ -360,6 +375,32 @@ fn with_closure() {
             1,
             "closure clones should count toward parent function"
         );
+    }
+
+    #[test]
+    fn test_nested_fn_not_counted_in_parent() {
+        // Clones inside a nested fn should NOT count toward the outer function
+        let code = "\
+fn outer() {
+    let a = String::new();
+    let _b = a.clone();
+    fn inner() {
+        let c = String::new();
+        let _d = c.clone();
+        let _e = c.clone();
+        let _f = c.clone();
+        let _g = c.clone();
+        let _h = c.clone();
+        let _i = c.clone();
+    }
+}
+";
+        let diags = parse_and_check(code);
+        // outer has 2 statements and 1 clone — under threshold
+        // inner has 7 statements and 6 clones — over threshold, but checked separately
+        // via FileVisitor::visit_item_fn
+        assert_eq!(diags.len(), 1, "only inner fn should trigger");
+        assert!(diags[0].message.contains("inner"));
     }
 
     #[test]
