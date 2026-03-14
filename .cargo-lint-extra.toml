@@ -1,5 +1,5 @@
 [global]
-exclude = ["tests/fixtures", "src/rules/text/inline_comments_parser_tests.rs", "src/rules/text/inline_comments_rule_tests.rs", "src/rules/text/redundant_comments_tests.rs"]
+exclude = ["tests/fixtures", "src/rules/text/inline_comments_parser_tests.rs", "src/rules/text/inline_comments_rule_tests.rs", "src/rules/text/redundant_comments_tests.rs", "src/rules/ast/magic_numbers_tests.rs"]
 
 [rules.glob-imports]
 allowed_crates = ["rayon::prelude"]
