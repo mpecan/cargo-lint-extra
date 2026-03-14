@@ -18,5 +18,5 @@ pub trait TextRule: Send + Sync {
 
 pub trait AstRule: Send + Sync {
     fn name(&self) -> &'static str;
-    fn check_file(&self, syntax: &syn::File, file: &Path) -> Vec<Diagnostic>;
+    fn check_file(&self, syntax: &syn::File, content: &str, file: &Path) -> Vec<Diagnostic>;
 }

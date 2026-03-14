@@ -99,7 +99,7 @@ impl AstRule for Rule {
         "allow-audit"
     }
 
-    fn check_file(&self, syntax: &syn::File, file: &Path) -> Vec<Diagnostic> {
+    fn check_file(&self, syntax: &syn::File, _content: &str, file: &Path) -> Vec<Diagnostic> {
         let mut visitor = AllowVisitor {
             level: self.level,
             flagged: &self.flagged,
@@ -123,7 +123,7 @@ mod tests {
             ..Config::default()
         };
         let rule = Rule::new(&config);
-        rule.check_file(&syntax, Path::new("test.rs"))
+        rule.check_file(&syntax, "", Path::new("test.rs"))
     }
 
     #[test]

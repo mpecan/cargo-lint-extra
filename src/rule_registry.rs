@@ -106,5 +106,6 @@ declare_rules! {
         allow_audit: "allow-audit",
         clone_density: "clone-density",
         glob_imports: "glob-imports",
+        magic_numbers: "magic-numbers",
     }
 }

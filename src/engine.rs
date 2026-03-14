@@ -166,7 +166,7 @@ impl Engine {
             match syn::parse_file(content) {
                 Ok(syntax) => {
                     for rule in ast_rules {
-                        diags.extend(rule.check_file(&syntax, file));
+                        diags.extend(rule.check_file(&syntax, content, file));
                     }
                 }
                 Err(err) => {
