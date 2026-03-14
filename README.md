@@ -30,6 +30,7 @@ That's it. With zero configuration you get:
 - **inline-comments** — flags functions with excessive `//` comments (ratio > 30% or > 3 consecutive)
 - **redundant-comments** — flags `//` comments that restate the code they describe (e.g., `// increment counter` above `counter += 1`)
 - **clone-density** — flags functions with too many `.clone()` calls (> 5 calls or > 10% ratio in 10+ statement functions)
+- **glob-imports** — flags `use foo::*` wildcard imports that make it hard to track symbol origins
 
 ## Usage
 
@@ -216,6 +217,22 @@ Two checks are performed:
 |---|---|---|
 | `max_clones_per_fn` | `5` | Maximum number of `.clone()` calls per function |
 | `max_clone_ratio` | `0.1` | Maximum ratio of `.clone()` calls to total statements (0.0–1.0) |
+
+### glob-imports
+
+Flags `use foo::*` wildcard/glob imports that make it hard to track where symbols come from. AI tools tend to add broad glob imports; this rule provides a standalone check even when Clippy's `wildcard_imports` lint isn't enabled.
+
+| Setting | Default | Description |
+|---|---|---|
+| `allowed_crates` | `[]` | Crate prefixes whose glob imports are permitted (e.g., `["std::prelude"]`) |
+| `allow_in_tests` | `true` | Skip glob imports inside `#[cfg(test)]` modules |
+
+```toml
+[rules.glob-imports]
+level = "warn"
+allowed_crates = ["std::prelude"]
+allow_in_tests = true
+```
 
 ### allow-audit
 

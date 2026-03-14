@@ -105,5 +105,6 @@ declare_rules! {
     ast {
         allow_audit: "allow-audit",
         clone_density: "clone-density",
+        glob_imports: "glob-imports",
     }
 }
