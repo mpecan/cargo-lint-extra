@@ -7,6 +7,7 @@ pub use crate::rule_registry::{RulesConfig, TestRulesOverrides};
 // Re-export per-rule config types for backward compatibility
 pub use crate::rules::ast::allow_audit::Config as AllowAuditConfig;
 pub use crate::rules::ast::clone_density::Config as CloneDensityConfig;
+pub use crate::rules::ast::collect_then_iterate::Config as CollectThenIterateConfig;
 pub use crate::rules::ast::glob_imports::Config as GlobImportsConfig;
 pub use crate::rules::ast::magic_numbers::Config as MagicNumbersConfig;
 pub use crate::rules::ast::undocumented_panic::Config as UndocumentedPanicConfig;
@@ -20,6 +21,7 @@ pub use crate::rules::text::todo_comments::Config as TodoCommentsConfig;
 // Re-export per-rule override types for backward compatibility
 pub use crate::rules::ast::allow_audit::Override as AllowAuditOverride;
 pub use crate::rules::ast::clone_density::Override as CloneDensityOverride;
+pub use crate::rules::ast::collect_then_iterate::Override as CollectThenIterateOverride;
 pub use crate::rules::ast::glob_imports::Override as GlobImportsOverride;
 pub use crate::rules::ast::magic_numbers::Override as MagicNumbersOverride;
 pub use crate::rules::ast::undocumented_panic::Override as UndocumentedPanicOverride;
