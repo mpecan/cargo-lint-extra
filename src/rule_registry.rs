@@ -105,6 +105,7 @@ declare_rules! {
     ast {
         allow_audit: "allow-audit",
         clone_density: "clone-density",
+        collect_then_iterate: "collect-then-iterate",
         glob_imports: "glob-imports",
         magic_numbers: "magic-numbers",
         undocumented_panic: "undocumented-panic",

@@ -30,6 +30,7 @@ That's it. With zero configuration you get:
 - **inline-comments** — flags functions with excessive `//` comments (ratio > 30% or > 3 consecutive)
 - **redundant-comments** — flags `//` comments that restate the code they describe (e.g., `// increment counter` above `counter += 1`)
 - **clone-density** — flags functions with too many `.clone()` calls (> 5 calls or > 10% ratio in 10+ statement functions)
+- **collect-then-iterate** — flags `.collect().iter()` and similar anti-patterns where a collection is built only to be immediately iterated
 - **glob-imports** — flags `use foo::*` wildcard imports that make it hard to track symbol origins
 
 ## Usage
@@ -217,6 +218,22 @@ Two checks are performed:
 |---|---|---|
 | `max_clones_per_fn` | `5` | Maximum number of `.clone()` calls per function |
 | `max_clone_ratio` | `0.1` | Maximum ratio of `.clone()` calls to total statements (0.0–1.0) |
+
+### collect-then-iterate
+
+Flags `.collect().iter()` and similar anti-patterns where a collection is built only to be immediately consumed. This allocates unnecessarily and is common in AI-generated code. Clippy does not catch this pattern.
+
+Detected patterns and their suggestions:
+
+| Follow-up method | Suggestion |
+|---|---|
+| `.iter()`, `.into_iter()`, `.iter_mut()` | Continue using the iterator chain directly |
+| `.len()` | Use `.count()` instead |
+| `.is_empty()` | Use `.next().is_none()` instead |
+| `.first()` | Use `.next()` instead |
+| `.last()` | Use `.last()` on the iterator instead |
+
+Only immediate chaining is flagged (e.g., `.collect().iter()`). Intermediate method calls (`.collect().as_slice().iter()`) and variable bindings (`let v = .collect(); v.iter()`) are not flagged. Both turbofish (`.collect::<Vec<_>>()`) and plain `.collect()` are detected.
 
 ### glob-imports
 
