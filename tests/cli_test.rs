@@ -191,6 +191,23 @@ fn test_warnings_as_errors_flag() {
 }
 
 #[test]
+fn test_warnings_as_errors_flag_exits_zero_on_clean_run() {
+    let dir = fixture_dir("clean.rs", "warn-as-err-clean");
+    let output = Command::new(cargo_bin())
+        .args(["lint-extra", "-W"])
+        .arg(dir.to_str().unwrap())
+        .output()
+        .expect("failed to run binary");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "warnings-as-errors should exit 0 when no diagnostics, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn test_config_flag_migrates_deprecated_max() {
     let dir = fixture_dir("clean.rs", "config-max");
     let config_path = dir.join(".cargo-lint-extra.toml");
