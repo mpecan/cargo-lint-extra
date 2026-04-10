@@ -107,8 +107,9 @@ fn main() {
         }
     }
 
-    let has_errors =
-        args.warnings_as_errors || diagnostics.iter().any(|d| d.level == RuleLevel::Deny);
+    let any_deny = diagnostics.iter().any(|d| d.level == RuleLevel::Deny);
+    let escalate_warnings = args.warnings_as_errors && !diagnostics.is_empty();
+    let has_errors = any_deny || escalate_warnings;
     process::exit(i32::from(has_errors));
 }
 
