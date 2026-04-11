@@ -31,6 +31,7 @@ That's it. With zero configuration you get:
 - **redundant-comments** — flags `//` comments that restate the code they describe (e.g., `// increment counter` above `counter += 1`)
 - **clone-density** — flags functions with too many `.clone()` calls (> 5 calls or > 10% ratio in 10+ statement functions)
 - **collect-then-iterate** — flags `.collect().iter()` and similar anti-patterns where a collection is built only to be immediately iterated
+- **string-alloc-in-loop** — flags `format!()`, string `+`/`+=`, and `.to_string()` inside loop bodies that cause repeated allocations
 - **glob-imports** — flags `use foo::*` wildcard imports that make it hard to track symbol origins
 
 ## Usage
@@ -234,6 +235,37 @@ Detected patterns and their suggestions:
 | `.last()` | Use `.last()` on the iterator instead |
 
 Only immediate chaining is flagged (e.g., `.collect().iter()`). Intermediate method calls (`.collect().as_slice().iter()`) and variable bindings (`let v = .collect(); v.iter()`) are not flagged. Both turbofish (`.collect::<Vec<_>>()`) and plain `.collect()` are detected.
+
+### string-alloc-in-loop
+
+Flags string-allocation anti-patterns inside loop bodies (`for`, `while`, `loop`). AI-generated code frequently uses `format!()` inside loops because it's the obvious approach, but it allocates a fresh `String` on every iteration. The idiomatic alternative is `String::with_capacity()` + `push_str()` or `write!()` into a pre-allocated buffer.
+
+Three checks are performed independently:
+
+| Check | What it flags | Suggestion |
+|---|---|---|
+| `check_format` | `format!()` macro calls inside loops | Use `write!()` into a pre-allocated `String` |
+| `check_concat` | String `+` / `+=` (heuristic: RHS is a `&` reference) | Use `String::with_capacity()` + `push_str()` |
+| `check_to_string` | Zero-arg `.to_string()` calls inside loops | Hoist out of the loop or use `write!()` |
+
+Loop context is tracked structurally:
+- Closures and inner `fn` definitions reset the context — code inside them is not considered "in loop"
+- Iterator chains like `(0..10).map(|i| format!("{}", i))` are not flagged (closure body)
+- Nested loops fire one diagnostic per matching expression, not duplicates
+
+| Setting | Default | Description |
+|---|---|---|
+| `check_format` | `true` | Flag `format!()` macro inside loops |
+| `check_concat` | `true` | Flag string concatenation (`+`, `+=`) inside loops |
+| `check_to_string` | `true` | Flag `.to_string()` calls inside loops |
+
+```toml
+[rules.string-alloc-in-loop]
+level = "warn"
+check_format = true
+check_concat = true
+check_to_string = true
+```
 
 ### glob-imports
 

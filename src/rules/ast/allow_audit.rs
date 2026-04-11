@@ -70,6 +70,10 @@ struct AllowVisitor<'a> {
 }
 
 impl<'ast> Visit<'ast> for AllowVisitor<'_> {
+    // The format!() in the loop only fires inside the rare violation branch
+    // (when an allowlisted lint matches), so it constructs a single diagnostic
+    // string per finding rather than allocating per iteration.
+    // cargo-lint-extra:allow(string-alloc-in-loop)
     fn visit_attribute(&mut self, attr: &'ast syn::Attribute) {
         if attr.path().is_ident("allow")
             && let syn::Meta::List(meta_list) = &attr.meta

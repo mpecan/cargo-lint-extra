@@ -108,6 +108,7 @@ declare_rules! {
         collect_then_iterate: "collect-then-iterate",
         glob_imports: "glob-imports",
         magic_numbers: "magic-numbers",
+        string_alloc_in_loop: "string-alloc-in-loop",
         undocumented_panic: "undocumented-panic",
     }
 }
