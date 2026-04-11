@@ -85,6 +85,9 @@ impl TextRule for Rule {
         "todo-comments"
     }
 
+    // The format!() in the loop runs at most once before `return Some(...)`
+    // exits the loop, so it allocates a single diagnostic message per call.
+    // cargo-lint-extra:allow(string-alloc-in-loop)
     fn check_line(&self, line: &str, line_number: usize, file: &Path) -> Option<Diagnostic> {
         let trimmed = line.trim();
         if !trimmed.starts_with("//") {
