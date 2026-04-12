@@ -212,7 +212,7 @@ mod tests {
         let config = Config::default();
         let engine = Engine::new(&config);
         assert_eq!(engine.prod_text_rules.len(), 5);
-        assert_eq!(engine.prod_ast_rules.len(), 4);
+        assert_eq!(engine.prod_ast_rules.len(), 5);
         assert!(engine.test_text_rules.is_empty());
         assert!(engine.test_ast_rules.is_empty());
         assert!(engine.test_config.is_none());
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(engine.prod_text_rules.len(), 5);
         // Test rules should mirror prod when no overrides
         assert_eq!(engine.test_text_rules.len(), 5);
-        assert_eq!(engine.test_ast_rules.len(), 4);
+        assert_eq!(engine.test_ast_rules.len(), 5);
         assert!(engine.test_config.is_some());
     }
 

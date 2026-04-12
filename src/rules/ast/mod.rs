@@ -5,3 +5,4 @@ pub mod glob_imports;
 pub mod magic_numbers;
 pub mod string_alloc_in_loop;
 pub mod undocumented_panic;
+pub mod verbose_result_handling;

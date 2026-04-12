@@ -110,5 +110,6 @@ declare_rules! {
         magic_numbers: "magic-numbers",
         string_alloc_in_loop: "string-alloc-in-loop",
         undocumented_panic: "undocumented-panic",
+        verbose_result_handling: "verbose-result-handling",
     }
 }
