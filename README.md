@@ -32,6 +32,7 @@ That's it. With zero configuration you get:
 - **clone-density** — flags functions with too many `.clone()` calls (> 5 calls or > 10% ratio in 10+ statement functions)
 - **collect-then-iterate** — flags `.collect().iter()` and similar anti-patterns where a collection is built only to be immediately iterated
 - **string-alloc-in-loop** — flags `format!()`, string `+`/`+=`, and `.to_string()` inside loop bodies that cause repeated allocations
+- **verbose-result-handling** — flags verbose `match` on `Result`/`Option` that can be replaced with `?`, `if let`, or `.map()`
 - **glob-imports** — flags `use foo::*` wildcard imports that make it hard to track symbol origins
 
 ## Usage
@@ -265,6 +266,29 @@ level = "warn"
 check_format = true
 check_concat = true
 check_to_string = true
+```
+
+### verbose-result-handling
+
+Flags verbose two-arm `match` expressions on `Result`/`Option` that can be rewritten using the `?` operator, `if let`, or `.map()`. LLM-generated code frequently produces nested match arms instead of idiomatic combinators — correct but harder to read and maintain.
+
+Three patterns are detected on `match` expressions with **exactly 2 arms** and **no guards** (3-arm matches, guards, wildcards, and alternative patterns are never flagged to keep the rule conservative):
+
+| Pattern | Detected shape | Suggested rewrite |
+|---|---|---|
+| `?` operator | `match e { Ok(x) => x, Err(e) => return Err(e) }` (also `Err(e.into())`) | `e?` |
+| `if let` | `match e { Some(x) => { ... }, None => {} }` (or symmetric `Ok`/`Err(_)`) | `if let Some(x) = e { ... }` |
+| `.map()` | `match e { Some(x) => Some(f(x)), None => None }` (or `Ok`/`Err` passthrough) | `e.map(f)` |
+
+Only `level` is configurable; the rule is intentionally opinionated about which shapes count.
+
+| Setting | Default | Description |
+|---|---|---|
+| `level` | `"warn"` | Rule level: `allow`/`warn`/`deny` |
+
+```toml
+[rules.verbose-result-handling]
+level = "warn"
 ```
 
 ### glob-imports
